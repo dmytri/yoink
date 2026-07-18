@@ -35,7 +35,7 @@
 - runrecord: none
 
 ## Dependencies
-- policy: locked
+- policy: latest-stable
 - dependency: none
 
 ## Outbound
