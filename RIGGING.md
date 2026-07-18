@@ -36,7 +36,7 @@
 
 ## Dependencies
 - policy: latest-stable
-- dependency: none
+- dependency: @earendil-works/pi-coding-agent
 
 ## Outbound
 - outbound: none
