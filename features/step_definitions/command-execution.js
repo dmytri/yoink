@@ -1,0 +1,123 @@
+import assert from "node:assert/strict";
+import { mkdtemp, mkdir, readFile, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { spawn } from "node:child_process";
+import { Given, When, Then, setDefaultTimeout } from "@cucumber/cucumber";
+
+setDefaultTimeout(5000);
+
+function setPlan(world, commands) {
+  world.plan = JSON.stringify({ commands });
+}
+
+async function run(world) {
+  world.directory ??= await mkdtemp(join(tmpdir(), "yoink-command-"));
+  await writeFile(join(world.directory, "plan.json"), world.plan);
+  const child = spawn(process.execPath, [join(process.cwd(), "dist/cli.js"), "plan.json"], {
+    cwd: world.directory,
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  const collect = (stream) => new Promise((resolve) => {
+    const chunks = [];
+    stream.on("data", (chunk) => chunks.push(chunk));
+    stream.on("end", () => resolve(Buffer.concat(chunks)));
+  });
+  const [stdout, stderr, status] = await Promise.all([
+    collect(child.stdout),
+    collect(child.stderr),
+    new Promise((resolve) => child.on("close", (code, signal) => resolve({ code, signal }))),
+  ]);
+  world.result = { stdout, stderr, ...status };
+}
+
+Given("a plan has commands that append {string} and then {string} to one file", function (first, second) {
+  this.outputFile = "ordered.txt";
+  setPlan(this, [
+    { label: "first", run: `printf ${first} >> ${this.outputFile}` },
+    { label: "second", run: `printf ${second} >> ${this.outputFile}` },
+  ]);
+});
+
+Given("a plan command has a cwd relative to Yoink's starting directory", async function () {
+  this.directory = await mkdtemp(join(tmpdir(), "yoink-cwd-"));
+  await mkdir(join(this.directory, "nested"));
+  this.expectedDirectory = join(this.directory, "nested");
+  setPlan(this, [{ label: "cwd", run: "pwd", cwd: "nested" }]);
+});
+
+Given("a plan command runs longer than one second without a timeout value", function () {
+  setPlan(this, [{ label: "slow", run: "sleep 1.2" }]);
+});
+
+Given("a plan command runs longer than one second with a timeout of two seconds", function () {
+  setPlan(this, [{ label: "slow", run: "sleep 1.2", timeout: 2 }]);
+});
+
+Given("a plan has a failing command followed by a successful command", function () {
+  setPlan(this, [
+    { label: "failure", run: "false" },
+    { label: "success", run: "printf later" },
+  ]);
+});
+
+Given("a plan command writes distinct text to standard output and standard error", function () {
+  setPlan(this, [{ label: "streams", run: "printf standard-output; printf standard-error >&2" }]);
+});
+
+Given("a plan command has an active child process", function () {
+  setPlan(this, [{ label: "child", run: "sleep 2" }]);
+});
+
+When("the command prints its working directory", async function () {
+  await run(this);
+});
+
+When("Yoink receives a termination signal", async function () {
+  this.directory ??= await mkdtemp(join(tmpdir(), "yoink-signal-"));
+  await writeFile(join(this.directory, "plan.json"), this.plan);
+  this.child = spawn(process.execPath, [join(process.cwd(), "dist/cli.js"), "plan.json"], { cwd: this.directory });
+  await new Promise((resolve) => setTimeout(resolve, 100));
+  this.signalledAt = Date.now();
+  this.child.kill("SIGTERM");
+  this.signal = await new Promise((resolve) => this.child.on("close", (_code, signal) => resolve(signal)));
+  this.signalElapsed = Date.now() - this.signalledAt;
+});
+
+Then("the file contains {string} before {string}", async function (first, second) {
+  assert.equal(await readFile(join(this.directory, this.outputFile), "utf8"), `${first}${second}`);
+});
+
+Then("the command result names the resolved working directory", function () {
+  assert.match(this.result.stdout.toString(), new RegExp(this.expectedDirectory));
+});
+
+Then("the command result is marked timed out", function () {
+  assert.match(this.result.stdout.toString(), /timed out/);
+});
+
+Then("the command result is not marked timed out", function () {
+  assert.doesNotMatch(this.result.stdout.toString(), /timed out/);
+});
+
+Then("the bundle contains results for both commands", function () {
+  assert.match(this.result.stdout.toString(), /failure/);
+  assert.match(this.result.stdout.toString(), /success/);
+});
+
+Then("the bundle has one stdout part with the standard output text", function () {
+  assert.match(this.result.stdout.toString(), /standard-output/);
+});
+
+Then("the bundle has one stderr part with the standard error text", function () {
+  assert.match(this.result.stdout.toString(), /standard-error/);
+});
+
+Then("Yoink terminates the active child process group", function () {
+  assert.equal(this.signal, "SIGTERM");
+  assert.ok(this.signalElapsed < 1000);
+});
+
+Then("Yoink exits with the signal-derived status", function () {
+  assert.equal(this.signal, "SIGTERM");
+});

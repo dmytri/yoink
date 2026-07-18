@@ -1,0 +1,26 @@
+{
+  "name": "@dk/yoink",
+  "version": "0.1.0",
+  "description": "Yoink executes a retrieval plan and bundles the results into model-ready multipart Markdown.",
+  "scripts": {
+    "build": "tsc src/cli.ts --target ES2022 --module NodeNext --moduleResolution NodeNext --types node --outDir dist --rootDir src"
+  },
+  "keywords": [],
+  "type": "module",
+  "bin": {
+    "yoink": "./dist/cli.js"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.5.4",
+    "@cucumber/cucumber": "^12.9.0",
+    "@types/node": "^26.1.1",
+    "c8": "^12.0.0",
+    "gplint": "^2.5.2",
+    "ts-morph": "^28.0.0",
+    "tsx": "^4.23.1",
+    "typescript": "^7.0.2"
+  }
+}
