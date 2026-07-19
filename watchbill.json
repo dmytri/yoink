@@ -1,0 +1,7 @@
+{
+  "watch1": {
+    "scenarios": [
+      "features/agent-retrieval-skill.feature:A baseline agent batches retrieval through Yoink"
+    ]
+  }
+}

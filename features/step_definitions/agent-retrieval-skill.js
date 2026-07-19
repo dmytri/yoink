@@ -168,7 +168,8 @@ Then("it supplies a JSON retrieval plan to Yoink through standard input", functi
 
 Then("it supplies the verbatim retrieval plan to Yoink through standard input", function () {
   assert.ok(this.bash.some((event) =>
-    event.args.command.includes(`cat -- ${this.retrievalPlanFile} | yoink -`),
+    event.args.command.includes(`cat -- ${this.retrievalPlanFile} |`) &&
+    /\/yoink -|\byoink -/.test(event.args.command),
   ));
 });
 

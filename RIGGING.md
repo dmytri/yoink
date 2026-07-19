@@ -36,7 +36,7 @@
 - policy: @logic: none
 - policy: @eval: HARNESS_OPENROUTER_API_KEY and HARNESS_EVAL_MODEL with the OpenRouter provider
 - weather: none
-- runrecord: none
+- runrecord: coverage/runrecord.json
 
 ## Dependencies
 - policy: latest-stable
