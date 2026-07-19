@@ -1,3 +1,4 @@
+@logic
 Feature: Retrieval command execution
   As an agent caller
   I want Yoink to execute each declared POSIX shell command predictably

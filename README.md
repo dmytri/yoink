@@ -51,6 +51,12 @@ Yoink exits non-zero when the plan is invalid, or when any command fails or time
 
 ## Agent Skills
 
+Install the Yoink skill for agent use:
+
+```sh
+npx skills add dmytri/yoink
+```
+
 An agent skill can batch its stable context reads into one plan:
 
 ```sh
@@ -62,3 +68,7 @@ The agent then consumes `context.md` in one inference instead of issuing one too
 ## Security
 
 Plans are trusted shell code executed by a POSIX shell. Yoink runs each `run` value as supplied. Review plans before running them. Yoink provides no sandboxing and does not support interactive terminal programs.
+
+## Built with Shipshape
+
+This repository uses [Shipshape](https://github.com/dmytri/shipshape), a context-isolated spec-driven workflow for coding agents. Install with `npx skills add dmytri/shipshape --skill '*'`, or the experimental open-plugin build with `npx plugins add dmytri/shipshape`.

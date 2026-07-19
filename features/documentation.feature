@@ -1,3 +1,4 @@
+@logic
 Feature: CLI documentation
   As an agent-skill author
   I want concise Yoink documentation

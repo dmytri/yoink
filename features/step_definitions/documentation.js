@@ -23,3 +23,7 @@ Then("it warns that plans execute trusted shell code", function () {
 Then("it includes a concise agent-skill example", function () {
   assert.match(this.documentation, /agent/i);
 });
+
+Then("it explains that the command installs the Yoink skill for agent use", function () {
+  assert.match(this.documentation, /installs? the Yoink skill for agent use/i);
+});

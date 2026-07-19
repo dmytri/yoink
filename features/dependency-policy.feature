@@ -1,3 +1,4 @@
+@logic
 Feature: Dependency currency
   As a package maintainer
   I want direct dependencies to track their latest stable npm releases

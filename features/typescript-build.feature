@@ -1,3 +1,4 @@
+@logic
 Feature: TypeScript CLI distribution
   As a package consumer
   I want the published Yoink binary to be built from TypeScript source

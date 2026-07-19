@@ -1,3 +1,4 @@
+@logic
 Feature: Multipart retrieval bundle
   As an agent caller
   I want a parseable multipart bundle containing each command result

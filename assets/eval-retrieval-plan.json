@@ -1,0 +1,24 @@
+{
+  "commands": [
+    {
+      "label": "Agent instructions",
+      "run": "cat -- AGENTS.md"
+    },
+    {
+      "label": "Working tree",
+      "run": "git status --short"
+    },
+    {
+      "label": "README standard-input references",
+      "run": "rg -n \"standard input\" README.md"
+    },
+    {
+      "label": "Vercel CLI version",
+      "run": "npx vercel --version"
+    },
+    {
+      "label": "Skills FAQ",
+      "run": "curl --fail --silent --show-error https://www.skills.sh/docs/faq"
+    }
+  ]
+}

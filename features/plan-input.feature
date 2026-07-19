@@ -1,3 +1,4 @@
+@logic
 Feature: Retrieval plan input
   As an agent caller
   I want to provide a JSON retrieval plan from a file or standard input
