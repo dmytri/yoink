@@ -6,12 +6,10 @@ description: Batch stable retrieval commands into one Yoink multipart context bu
 <!-- @planks("When the agent gathers the requested context") -->
 # Yoink
 
-Use Yoink when several requested shell commands gather context. Run every requested command in one JSON plan supplied on standard input:
+Use Yoink when several requested shell commands gather context. When a retrieval plan is supplied in a file, pass its exact bytes to Yoink on standard input:
 
 ```sh
-yoink - <<'JSON'
-{"commands":[{"label":"Instructions","run":"cat -- AGENTS.md"}]}
-JSON
+cat -- retrieval-plan.json | yoink -
 ```
 
 Give every requested command one `commands` entry with a concise `label` and its exact `run` command. Consume Yoink's multipart standard output bundle before acting on gathered context.
