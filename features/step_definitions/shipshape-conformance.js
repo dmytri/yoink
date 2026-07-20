@@ -81,6 +81,7 @@ Given("Yoink starts a command that remains active", startsAnActiveCommand);
 When("signal verification waits for child-process readiness", waitsForChildProcessReadiness);
 Then("it sends SIGTERM only after the child process is observable", assertsChildProcessWasObservable);
 
-Given("Yoink signal verification starts a command that remains active", startsAnActiveCommand);
-When("the signal test waits for child-process readiness", waitsForChildProcessReadiness);
-Then("the signal test sends SIGTERM only after the child process is observable", assertsChildProcessWasObservable);
+When("Yoink's signal test waits for child-process readiness", async function () {
+  await startsAnActiveCommand.call(this);
+  await waitsForChildProcessReadiness.call(this);
+});

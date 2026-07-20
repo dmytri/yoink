@@ -20,6 +20,6 @@ Feature: Shipshape conformance
 
   @conformance
   Scenario: Signal tests wait for active child-process readiness
-    Given Yoink signal verification starts a command that remains active
-    When the signal test waits for child-process readiness
-    Then the signal test sends SIGTERM only after the child process is observable
+    Given a plan command has an active child process
+    When Yoink's signal test waits for child-process readiness
+    Then it sends SIGTERM only after the child process is observable
