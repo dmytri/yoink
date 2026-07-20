@@ -59,3 +59,13 @@ Binding behaviour lives in `.feature` specs and referenced `assets/**`. History 
 
 - `assets/eval-retrieval-plan.json` is the human-runnable plan and the exact JSON Pi MUST pass to the locally packed Yoink CLI on standard input.
 - The eval scenarios reference this asset. The next QM target makes the harness read the asset, give its bytes to Pi in the task prompt, and assert the observed Yoink stdin payload equals those bytes.
+
+## Shipshape Dispatch Findings
+
+- Captain to QM accepts only role and base commit. A retry that carried target and failing-run evidence was rejected as contamination, although that evidence is needed by QM to act on a Boatswain recheck failure. The correct retry was a thin Captain to QM dispatch that relied on `watchbill.json`.
+- QM reported a watchbill spent after a focused green run. Its returned run record did not persist under `coverage/runrecord.json` on the committed deck, so Boatswain could not corroborate the result from durable state.
+- Boatswain requires spent-watch evidence before it strikes `watchbill.json`. Its dispatch contract permits only job, base commit, and advanced target references, so Captain cannot convey QM's spent evidence. A Boatswain return asks Captain for evidence that the contract bars Captain from supplying.
+- Captain-owned removal of a spent watchbill also failed custody because Boatswain requires the same unavailable evidence. This leaves a green target with a retained watchbill and no legal custody path.
+- A later QM run appended three focused green records to `coverage/runrecord.json`, including a current role-advanced deck hash. Boatswain still reported no run record and left `watchbill.json` in place. The file existed after its report, so custody must read a different state or applies a different hash calculation.
+- Boatswain also left `skills/yoink/SKILL.md` unstaged as undecidable, although QM named that file in the target's durable scope and Crew changed it to make the focused target pass. The Boatswain dispatch carries scenario references only, so its authorship decision cannot receive QM's file attribution.
+- Agent deadlock: Captain could not complete harbour entry because Boatswain requires spent-watch evidence but its contract excludes that evidence. Captain did not send the prohibited prose because Boatswain is required to reject extra dispatch content as contamination. Captain also could not make the custody commit because Shipshape assigns that action to Boatswain. The process has no defined escalation or durable evidence channel for this contradiction.

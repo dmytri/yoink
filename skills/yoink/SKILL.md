@@ -9,7 +9,7 @@ description: Batch stable retrieval commands into one Yoink multipart context bu
 Use Yoink when several requested shell commands gather context. When a retrieval plan is supplied in a file, pass its exact bytes to Yoink on standard input:
 
 ```sh
-cat -- retrieval-plan.json | yoink -
+cat -- retrieval-plan.json | ./node_modules/.bin/yoink -
 ```
 
 Give every requested command one `commands` entry with a concise `label` and its exact `run` command. Consume Yoink's multipart standard output bundle before acting on gathered context.
