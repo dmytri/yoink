@@ -12,7 +12,7 @@ Feature: Shipshape conformance
     When the perturbation quiescence check runs
     Then it reports no PERTURBATION token
 
-  @captain @conformance
+  @conformance
   Scenario: Signal verification observes an active child process
     Given Yoink starts a command that remains active
     When signal verification waits for child-process readiness

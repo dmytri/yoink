@@ -1,6 +1,7 @@
 import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { readFile, realpath, stat } from "node:fs/promises";
+/** @planks("Yoink exits with a non-zero status") */
 function invalid(path) {
     process.stderr.write(`${path} is invalid\n`);
     process.exitCode = 1;

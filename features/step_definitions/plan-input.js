@@ -66,6 +66,17 @@ Given("standard input contains a plan with one retrieval command", async functio
   this.stdin = plan();
 });
 
+Given("standard input contains a root command collection with one retrieval command", async function () {
+  this.directory = await mkdtemp(join(tmpdir(), "yoink-stdin-"));
+  this.stdin = plan();
+});
+
+Given("a plan file contains malformed JSON", async function () {
+  this.directory = await mkdtemp(join(tmpdir(), "yoink-invalid-"));
+  this.argument = "plan.json";
+  await writeFile(join(this.directory, "plan.json"), "{");
+});
+
 Given(/a plan whose (.+) is invalid/, async function (invalidValue) {
   this.directory = await mkdtemp(join(tmpdir(), "yoink-invalid-"));
   this.argument = "plan.json";
@@ -117,6 +128,11 @@ Then("the next command receives {string} as an argument", function (argument) {
 
 Then("Yoink exits with a non-zero status", function () {
   assert.notEqual(this.result.status, 0);
+});
+
+Then("Yoink exits with a non-zero status before executing a retrieval command", function () {
+  assert.notEqual(this.result.status, 0);
+  assert.doesNotMatch(this.result.stdout.toString(), /retrieved/);
 });
 
 Then("Yoink writes a validation diagnostic for {string} to standard error", function (path) {

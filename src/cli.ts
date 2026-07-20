@@ -22,6 +22,7 @@ type Result = {
 	timedOut: boolean;
 };
 
+/** @planks("Yoink exits with a non-zero status") */
 function invalid(path: string) {
 	process.stderr.write(`${path} is invalid\n`);
 	process.exitCode = 1;
@@ -35,7 +36,7 @@ function invalid(path: string) {
  * @planks("Yoink receives a termination signal")
  * @planks("the caller redirects Yoink standard output to {string}")
  * @planks("the next command sets {string} to {string}")
- * @planks-provisional("features/plan-input.feature:Malformed plan input is rejected")
+ * @planks("Yoink exits with a non-zero status before executing a retrieval command")
  */
 async function main() {
 	const argument = process.argv[2];

@@ -25,7 +25,6 @@ Feature: Retrieval plan input
     When the caller runs Yoink with the plan
     Then the next command receives "main" as an argument
 
-  @captain
   Scenario: Malformed plan input is rejected
     Given a plan file contains malformed JSON
     When the caller runs Yoink with the plan
