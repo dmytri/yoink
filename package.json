@@ -2,6 +2,11 @@
   "name": "@dk/yoink",
   "version": "0.1.0",
   "description": "Yoink executes a retrieval plan and bundles the results into model-ready multipart Markdown.",
+  "files": [
+    "dist",
+    "README.md",
+    "skills/yoink"
+  ],
   "scripts": {
     "build": "tsc src/cli.ts --target ES2022 --module NodeNext --moduleResolution NodeNext --types node --outDir dist --rootDir src"
   },
