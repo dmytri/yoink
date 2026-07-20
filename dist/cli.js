@@ -8,13 +8,19 @@ function invalid(path) {
 /**
  * @planks("the caller runs {string}")
  * @planks("the caller runs Yoink with the plan")
+ * @planks("the caller runs Yoink")
  * @planks("the command prints its working directory")
  * @planks("Yoink receives a termination signal")
  * @planks("the caller redirects Yoink standard output to {string}")
+ * @planks("the next command sets {string} to {string}")
  * @planks-provisional("features/plan-input.feature:Malformed plan input is rejected")
  */
 async function main() {
-    const argument = process.argv[2] ?? "plan.json";
+    const argument = process.argv[2];
+    if (argument === undefined) {
+        process.stdout.write("usage: yoink <plan>\n");
+        return;
+    }
     let input;
     if (argument === "-") {
         input = "";
@@ -45,7 +51,7 @@ async function main() {
         if (typeof command.run !== "string" || command.run === "")
             return invalid(`${path}.run`);
         for (const key of Object.keys(command)) {
-            if (!["label", "run", "timeout", "cwd"].includes(key))
+            if (!["label", "run", "timeout", "cwd", "pipe", "stdin"].includes(key))
                 return invalid(`${path}.${key}`);
         }
         if ("timeout" in command &&
@@ -62,6 +68,10 @@ async function main() {
                 return invalid(`${path}.cwd`);
             }
         }
+        if ("pipe" in command && typeof command.pipe !== "boolean")
+            return invalid(`${path}.pipe`);
+        if ("stdin" in command && command.stdin !== "args")
+            return invalid(`${path}.stdin`);
     }
     let activeChild;
     process.once("SIGTERM", () => {
@@ -70,9 +80,10 @@ async function main() {
         process.kill(process.pid, "SIGTERM");
     });
     const results = [];
+    let pipedStdout;
     for (const command of plan.commands) {
         const startedAt = Date.now();
-        const child = spawn(command.run, {
+        const child = spawn(command.run, command.stdin === "args" && pipedStdout ? [pipedStdout.toString()] : [], {
             cwd: command.cwd,
             detached: true,
             shell: true,
@@ -101,6 +112,7 @@ async function main() {
             duration: Date.now() - startedAt,
             timedOut,
         });
+        pipedStdout = command.pipe ? Buffer.concat(stdout) : undefined;
         if (timedOut || status.code !== 0 || status.signal)
             process.exitCode = 1;
     }

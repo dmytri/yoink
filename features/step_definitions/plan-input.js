@@ -14,7 +14,8 @@ async function run(world, input) {
     world.directory ??= await mkdtemp(join(tmpdir(), "yoink-command-"));
     await writeFile(join(world.directory, "plan.json"), world.plan);
   }
-  const child = spawn(process.execPath, [join(process.cwd(), "dist/cli.js"), world.argument ?? "plan.json"], {
+  const arguments_ = world.argument === undefined ? ["plan.json"] : world.argument ? [world.argument] : [];
+  const child = spawn(process.execPath, [join(process.cwd(), "dist/cli.js"), ...arguments_], {
     cwd: world.directory,
     stdio: ["pipe", "pipe", "pipe"],
   });
@@ -36,6 +37,28 @@ Given("a plan file named {string} contains one retrieval command", async functio
   this.directory = await mkdtemp(join(tmpdir(), "yoink-plan-"));
   this.argument = name;
   await writeFile(join(this.directory, name), plan());
+});
+
+Given("a plan file named {string} contains a root command collection with one retrieval command", async function (name) {
+  this.directory = await mkdtemp(join(tmpdir(), "yoink-plan-"));
+  this.argument = name;
+  await writeFile(join(this.directory, name), plan());
+});
+
+Given("the caller provides no plan argument", function () {
+  this.directory = process.cwd();
+  this.argument = "";
+});
+
+Given("a root command collection has a command that prints {string} and sets {string} to true", async function (output, field) {
+  this.directory = await mkdtemp(join(tmpdir(), "yoink-pipe-"));
+  this.argument = "plan.json";
+  this.commands = [{ label: "source", run: `printf ${output}`, [field]: true }];
+});
+
+Given("the next command sets {string} to {string}", async function (field, value) {
+  this.commands.push({ label: "destination", run: "printf 'received:%s' \"$@\"", [field]: value });
+  await writeFile(join(this.directory, "plan.json"), JSON.stringify({ commands: this.commands }));
 });
 
 Given("standard input contains a plan with one retrieval command", async function () {
@@ -68,6 +91,10 @@ When("the caller runs Yoink with the plan", async function () {
   await run(this, this.stdin);
 });
 
+When("the caller runs Yoink", async function () {
+  await run(this, this.stdin);
+});
+
 Then("Yoink executes the retrieval command from {string}", function (_name) {
   assert.equal(this.result.status, 0);
   assert.match(this.result.stdout.toString(), /retrieved/);
@@ -76,6 +103,16 @@ Then("Yoink executes the retrieval command from {string}", function (_name) {
 Then("Yoink executes the retrieval command from standard input", function () {
   assert.equal(this.result.status, 0);
   assert.match(this.result.stdout.toString(), /retrieved/);
+});
+
+Then("Yoink prints usage and exits successfully", function () {
+  assert.equal(this.result.status, 0);
+  assert.match(this.result.stdout.toString(), /usage/i);
+});
+
+Then("the next command receives {string} as an argument", function (argument) {
+  assert.equal(this.result.status, 0);
+  assert.match(this.result.stdout.toString(), new RegExp(`received:${argument}`));
 });
 
 Then("Yoink exits with a non-zero status", function () {

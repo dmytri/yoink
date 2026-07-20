@@ -13,6 +13,7 @@ Feature: Agent retrieval skill
     And the agent receives the verbatim retrieval plan in "assets/eval-retrieval-plan.json"
     When the agent gathers the requested context
     Then it supplies the verbatim retrieval plan to Yoink through standard input
+    And it invokes Yoink from the workspace-local node_modules directory
     And it consumes Yoink's multipart bundle from standard output
     And the bundle contains every retrieval-plan result
     And it does not create a plan or context file

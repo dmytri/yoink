@@ -4,15 +4,26 @@ Feature: Retrieval plan input
   I want to provide a JSON retrieval plan from a file or standard input
   So that I can run a prepared retrieval batch without a temporary plan file
 
-  Scenario: A plan file supplies retrieval commands
-    Given a plan file named "plan.json" contains one retrieval command
+  Scenario: A plan file supplies a root command collection
+    Given a plan file named "plan.json" contains a root command collection with one retrieval command
     When the caller runs "yoink plan.json"
     Then Yoink executes the retrieval command from "plan.json"
 
-  Scenario: Standard input supplies a retrieval plan
-    Given standard input contains a plan with one retrieval command
+  Scenario: Standard input supplies a root command collection
+    Given standard input contains a root command collection with one retrieval command
     When the caller runs "yoink -"
     Then Yoink executes the retrieval command from standard input
+
+  Scenario: No plan argument prints usage
+    Given the caller provides no plan argument
+    When the caller runs Yoink
+    Then Yoink prints usage and exits successfully
+
+  Scenario: A command pipes stdout to the next command
+    Given a root command collection has a command that prints "main" and sets "pipe" to true
+    And the next command sets "stdin" to "args"
+    When the caller runs Yoink with the plan
+    Then the next command receives "main" as an argument
 
   @captain
   Scenario: Malformed plan input is rejected

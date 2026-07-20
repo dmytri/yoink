@@ -173,6 +173,10 @@ Then("it supplies the verbatim retrieval plan to Yoink through standard input", 
   ));
 });
 
+Then("it invokes Yoink from the workspace-local node_modules directory", function () {
+  assert.ok(this.bash.some((event) => event.args.command.includes("node_modules/.bin/yoink")));
+});
+
 Then("it consumes Yoink's multipart bundle from standard output", function () {
   assert.match(this.output, /multipart\/mixed/);
 });
