@@ -1,7 +1,0 @@
-{
-  "watch1": {
-    "scenarios": [
-      "features/shipshape-conformance.feature:Signal tests wait for active child-process readiness"
-    ]
-  }
-}
