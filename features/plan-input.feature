@@ -14,6 +14,12 @@ Feature: Retrieval plan input
     When the caller runs "yoink -"
     Then Yoink executes the retrieval command from standard input
 
+  @captain
+  Scenario: Malformed plan input is rejected
+    Given a plan file contains malformed JSON
+    When the caller runs Yoink with the plan
+    Then Yoink exits with a non-zero status before executing a retrieval command
+
   Scenario Outline: An invalid plan identifies its invalid JSON path
     Given a plan whose <invalid value> is invalid
     When the caller runs Yoink with the plan
