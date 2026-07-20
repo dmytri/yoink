@@ -41,7 +41,7 @@ Then("it reports no PERTURBATION token", function () {
     assert.equal(source.includes("PERTURBATION"), false);
 });
 
-Given("Yoink starts a command that remains active", async function () {
+async function startsAnActiveCommand() {
   this.signalDirectory = await mkdtemp(join(tmpdir(), "yoink-signal-"));
   await writeFile(
     join(this.signalDirectory, "plan.json"),
@@ -52,9 +52,9 @@ Given("Yoink starts a command that remains active", async function () {
     [join(process.cwd(), "dist/cli.js"), "plan.json"],
     { cwd: this.signalDirectory },
   );
-});
+}
 
-When("signal verification waits for child-process readiness", async function () {
+async function waitsForChildProcessReadiness() {
   const children = `/proc/${this.signalChild.pid}/task/${this.signalChild.pid}/children`;
   const deadline = Date.now() + 1000;
   while (Date.now() < deadline) {
@@ -70,9 +70,17 @@ When("signal verification waits for child-process readiness", async function () 
     await new Promise((resolve) => setTimeout(resolve, 10));
   }
   throw new Error("Yoink child process did not become observable");
-});
+}
 
-Then("it sends SIGTERM only after the child process is observable", function () {
+function assertsChildProcessWasObservable() {
   assert.match(this.observedChild, /\d+/);
   assert.equal(this.signal, "SIGTERM");
-});
+}
+
+Given("Yoink starts a command that remains active", startsAnActiveCommand);
+When("signal verification waits for child-process readiness", waitsForChildProcessReadiness);
+Then("it sends SIGTERM only after the child process is observable", assertsChildProcessWasObservable);
+
+Given("Yoink signal verification starts a command that remains active", startsAnActiveCommand);
+When("the signal test waits for child-process readiness", waitsForChildProcessReadiness);
+Then("the signal test sends SIGTERM only after the child process is observable", assertsChildProcessWasObservable);
