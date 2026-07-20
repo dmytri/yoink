@@ -1,6 +1,6 @@
 {
   "name": "@dk/yoink",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Yoink executes a retrieval plan and bundles the results into model-ready multipart Markdown.",
   "files": [
     "dist",
@@ -13,7 +13,7 @@
   "keywords": [],
   "type": "module",
   "bin": {
-    "yoink": "./dist/cli.js"
+    "yoink": "dist/cli.js"
   },
   "engines": {
     "node": ">=22.19"
