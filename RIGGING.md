@@ -22,7 +22,7 @@
 - step-usage: `npx cucumber-js --dry-run --format usage-json --tags "not @captain and not @shipwright"`
 - plank-inventory: `rg -n '@planks(?:-provisional)?\(' src`
 - typecheck: `npx tsc src/cli.ts --noEmit --target ES2022 --module NodeNext --moduleResolution NodeNext --types node`
-- lint: `npx biome check src`
+- lint: `npx gplint && npx biome check src`
 - conformance: none
 
 ## Perturbation
