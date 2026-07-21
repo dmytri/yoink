@@ -12,7 +12,7 @@ Feature: Agent retrieval skill
     And the baseline agent starts Pi with the configured OpenRouter provider, task prompt, and session directory
     And the agent receives the verbatim retrieval plan in "assets/eval-retrieval-plan.json"
     When the agent gathers the requested context
-    Then it supplies the verbatim retrieval plan to Yoink through standard input
+    Then it passes the verbatim retrieval plan to Yoink as its positional argument
     And it invokes Yoink from the workspace-local node_modules directory
     And it consumes Yoink's multipart bundle from standard output
     And the bundle contains every retrieval-plan result

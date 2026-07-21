@@ -19,12 +19,12 @@ async function installPackage(world) {
 async function runAgent(world) {
   const prompt = [
     "Use the Yoink skill to gather the requested context.",
-    "Run every requested command through Yoink in one JSON plan supplied on standard input.",
+    "Use an inline JSON plan through standard input only when no plan file is supplied.",
     world.contextFile
       ? `Write Yoink standard output to ${world.contextFile}.`
       : "Do not create a plan or context file.",
     world.retrievalPlan
-      ? `Supply the exact bytes from ${world.retrievalPlanFile} to Yoink through standard input with cat -- ${world.retrievalPlanFile} | yoink -.`
+      ? `Pass ${world.retrievalPlanFile} directly to Yoink as its positional plan argument with yoink ${world.retrievalPlanFile}.`
       : "",
     "Report the gathered context after consuming Yoink standard output.",
   ].join(" ");
@@ -166,10 +166,10 @@ Then("it supplies a JSON retrieval plan to Yoink through standard input", functi
   assert.match(commands, /"commands"/);
 });
 
-Then("it supplies the verbatim retrieval plan to Yoink through standard input", function () {
+Then("it passes the verbatim retrieval plan to Yoink as its positional argument", function () {
   assert.ok(this.bash.some((event) =>
-    event.args.command.includes(`cat -- ${this.retrievalPlanFile} |`) &&
-    /\/yoink -|\byoink -/.test(event.args.command),
+    event.args.command.includes(this.retrievalPlanFile) &&
+    /\/yoink\s|\byoink\s/.test(event.args.command),
   ));
 });
 
