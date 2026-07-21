@@ -60,10 +60,31 @@ npx skills add dmytri/yoink
 An agent skill can batch its stable context reads into one plan:
 
 ```sh
-yoink retrieval-plan.json > context.md
+npx @dk/yoink - <<'JSON'
+{
+  "commands": [
+    {
+      "label": "Source paths",
+      "run": "rg --files src",
+      "pipe": true
+    },
+    {
+      "label": "Piped path arguments",
+      "run": "printf '%s\\n' \"$@\"",
+      "stdin": "args"
+    }
+  ]
+}
+JSON
 ```
 
-The agent then consumes `context.md` in one inference instead of issuing one tool request per retrieval command.
+Or it can pass a supplied plan file directly:
+
+```sh
+npx @dk/yoink retrieval-plan.json
+```
+
+The agent then consumes Yoink's standard-output bundle in one inference instead of issuing one tool request per retrieval command.
 
 ## Security
 

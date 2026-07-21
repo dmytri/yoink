@@ -168,13 +168,13 @@ Then("it supplies a JSON retrieval plan to Yoink through standard input", functi
 
 Then("it passes the verbatim retrieval plan to Yoink as its positional argument", function () {
   assert.ok(this.bash.some((event) =>
-    event.args.command.includes(this.retrievalPlanFile) &&
-    /\/yoink\s|\byoink\s/.test(event.args.command),
+    event.args.command.includes("npx @dk/yoink") &&
+    event.args.command.includes("retrieval-plan.json"),
   ));
 });
 
-Then("it invokes Yoink from the workspace-local node_modules directory", function () {
-  assert.ok(this.bash.some((event) => event.args.command.includes("node_modules/.bin/yoink")));
+Then("it invokes Yoink through npx", function () {
+  assert.ok(this.bash.some((event) => event.args.command.includes("npx @dk/yoink")));
 });
 
 Then("it consumes Yoink's multipart bundle from standard output", function () {
