@@ -6,11 +6,21 @@ import { spawn } from "node:child_process";
 import { Given, When, Then } from "@cucumber/cucumber";
 
 function setPlan(world, command) {
-  world.plan = JSON.stringify({ commands: [command] });
+  world.plan = JSON.stringify({ commands: Array.isArray(command) ? command : [command] });
 }
 
 function bundle(world) {
   return world.bundle ?? world.result.stdout;
+}
+
+function stdoutBodies(world) {
+  const output = bundle(world);
+  const boundary = output.toString().match(/^Content-Type: multipart\/mixed; boundary=(.+)$/m)?.[1];
+  return output
+    .toString()
+    .split(`--${boundary}\nContent-Type: application/octet-stream\nContent-Disposition: form-data; name="stdout"\n\n`)
+    .slice(1)
+    .map((part) => part.slice(0, part.indexOf(`\n--${boundary}`)));
 }
 
 async function run(world, outputFile) {
@@ -35,6 +45,20 @@ Given("a plan command has a label, command, and working directory", async functi
 
 Given("a plan has one successful command", function () {
   setPlan(this, { label: "success", run: "printf payload" });
+});
+
+Given("a plan has a piped producer that emits {string} and a successful consumer", function (output) {
+  setPlan(this, [
+    { label: "source", run: `printf ${output}`, pipe: true },
+    { label: "destination", run: "cat" },
+  ]);
+});
+
+Given("a plan has a piped producer that emits {string}, sets {string} to true, and a successful consumer", function (output, field) {
+  setPlan(this, [
+    { label: "source", run: `printf ${output}`, pipe: true, [field]: true },
+    { label: "destination", run: "cat" },
+  ]);
 });
 
 Given("a plan command emits Markdown with nested fenced JSON and Bash blocks", function () {
@@ -109,6 +133,18 @@ Then("the declared boundary does not occur in result metadata or captured output
 
 Then("the bundle preserves the captured command stream bytes", function () {
   assert.ok(bundle(this).includes(this.stdout));
+});
+
+Then("the bundle omits the piped producer's stdout", function () {
+  assert.equal(stdoutBodies(this)[0], "");
+});
+
+Then("the bundle includes the consumer's stdout", function () {
+  assert.equal(stdoutBodies(this)[1], "upstream");
+});
+
+Then("the bundle includes the piped producer's stdout", function () {
+  assert.equal(stdoutBodies(this)[0], "upstream");
 });
 
 Then("{string} equals the bundle Yoink writes to standard output", async function (file) {

@@ -18,7 +18,11 @@ function invalid(path) {
  * @planks("Yoink exits with a non-zero status before executing a retrieval command")
  */
 async function main() {
-    const argument = process.argv[2];
+    const [option, planArgument] = process.argv.slice(2);
+    const pipefail = option !== "--no-pipefail";
+    const argument = option === "--pipefail" || option === "--no-pipefail"
+        ? planArgument
+        : option;
     if (argument === undefined) {
         process.stdout.write("usage: yoink <plan>\n");
         return;
@@ -53,7 +57,7 @@ async function main() {
         if (typeof command.run !== "string" || command.run === "")
             return invalid(`${path}.run`);
         for (const key of Object.keys(command)) {
-            if (!["label", "run", "timeout", "cwd", "pipe"].includes(key))
+            if (!["label", "run", "timeout", "cwd", "pipe", "capture"].includes(key))
                 return invalid(`${path}.${key}`);
         }
         if ("timeout" in command &&
@@ -72,6 +76,8 @@ async function main() {
         }
         if ("pipe" in command && typeof command.pipe !== "boolean")
             return invalid(`${path}.pipe`);
+        if ("capture" in command && typeof command.capture !== "boolean")
+            return invalid(`${path}.capture`);
     }
     let activeChild;
     process.once("SIGTERM", () => {
@@ -80,17 +86,16 @@ async function main() {
         process.kill(process.pid, "SIGTERM");
     });
     const results = [];
-    let pipedStdout;
-    for (const command of plan.commands) {
+    /** @planks("the caller runs Yoink with the plan") */
+    const execute = (command, piped = false) => {
         const startedAt = Date.now();
         const child = spawn(command.run, [], {
             cwd: command.cwd,
             detached: true,
             shell: true,
-            stdio: [pipedStdout ? "pipe" : "ignore", "pipe", "pipe"],
+            stdio: [piped ? "pipe" : "ignore", "pipe", "pipe"],
         });
         activeChild = child;
-        child.stdin?.end(pipedStdout);
         const stdout = [];
         const stderr = [];
         child.stdout?.on("data", (chunk) => stdout.push(chunk));
@@ -101,21 +106,40 @@ async function main() {
             if (child.pid !== undefined)
                 process.kill(-child.pid, "SIGTERM");
         }, (command.timeout ?? 1) * 1000);
-        const status = await new Promise((resolve) => child.on("close", (code, signal) => resolve({ code, signal })));
-        clearTimeout(timeout);
-        activeChild = undefined;
-        results.push({
-            command,
-            cwd: command.cwd ? await realpath(command.cwd) : process.cwd(),
-            stdout: Buffer.concat(stdout),
-            stderr: Buffer.concat(stderr),
-            ...status,
-            duration: Date.now() - startedAt,
-            timedOut,
+        const status = new Promise((resolve) => child.on("close", (code, signal) => resolve({ code, signal }))).then(async (status) => {
+            clearTimeout(timeout);
+            if (activeChild === child)
+                activeChild = undefined;
+            return {
+                command,
+                cwd: command.cwd ? await realpath(command.cwd) : process.cwd(),
+                stdout: command.pipe && !command.capture
+                    ? Buffer.alloc(0)
+                    : Buffer.concat(stdout),
+                stderr: Buffer.concat(stderr),
+                ...status,
+                duration: Date.now() - startedAt,
+                timedOut,
+            };
         });
-        pipedStdout = command.pipe ? Buffer.concat(stdout) : undefined;
-        if (timedOut || status.code !== 0 || status.signal)
+        return { child, status };
+    };
+    const commands = plan.commands;
+    for (let index = 0; index < commands.length;) {
+        const pipeline = [execute(commands[index])];
+        while (commands[index].pipe && index + 1 < commands.length) {
+            index += 1;
+            const next = execute(commands[index], true);
+            if (next.child.stdin)
+                pipeline.at(-1)?.child.stdout?.pipe(next.child.stdin);
+            pipeline.push(next);
+        }
+        const completed = await Promise.all(pipeline.map(({ status }) => status));
+        results.push(...completed);
+        const failed = pipefail ? completed : completed.slice(-1);
+        if (failed.some(({ timedOut, code, signal }) => timedOut || code !== 0 || signal))
             process.exitCode = 1;
+        index += 1;
     }
     const metadata = (result) => Buffer.from(`label: ${result.command.label}\ncommand: ${result.command.run}\nworking directory: ${result.cwd}\nexit code: ${result.code}\nduration: ${result.duration}\ntimeout: ${result.timedOut ? "timed out" : "no"}\n`);
     const bodies = results.flatMap((result) => [

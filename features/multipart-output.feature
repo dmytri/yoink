@@ -38,3 +38,14 @@ Feature: Multipart retrieval bundle
     Given a plan has one successful command
     When the caller redirects Yoink standard output to "context.md"
     Then "context.md" equals the bundle Yoink writes to standard output
+
+  Scenario: A piped producer omits stdout from the bundle by default
+    Given a plan has a piped producer that emits "upstream" and a successful consumer
+    When the caller runs Yoink with the plan
+    Then the bundle omits the piped producer's stdout
+    And the bundle includes the consumer's stdout
+
+  Scenario: A piped producer captures stdout when requested
+    Given a plan has a piped producer that emits "upstream", sets "capture" to true, and a successful consumer
+    When the caller runs Yoink with the plan
+    Then the bundle includes the piped producer's stdout

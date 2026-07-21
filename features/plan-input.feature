@@ -25,6 +25,22 @@ Feature: Retrieval plan input
     When the caller runs Yoink with the plan
     Then the next command receives "main" on standard input
 
+  Scenario: A piped command streams stdout before it exits
+    Given a root command collection has a piped command that stays active after writing "main"
+    And the next command reads standard input
+    When the caller runs Yoink with the plan
+    Then the next command receives "main" before the piped command exits
+
+  Scenario: Pipefail reports a failed piped producer
+    Given a root command collection has a failing piped producer and a successful consumer
+    When the caller runs Yoink with "--pipefail"
+    Then Yoink exits with a non-zero status
+
+  Scenario: No-pipefail accepts a failed piped producer with a successful consumer
+    Given a root command collection has a failing piped producer and a successful consumer
+    When the caller runs Yoink with "--no-pipefail"
+    Then Yoink exits successfully
+
   Scenario: Malformed plan input is rejected
     Given a plan file contains malformed JSON
     When the caller runs Yoink with the plan

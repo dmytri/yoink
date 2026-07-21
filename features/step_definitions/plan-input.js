@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, writeFile } from "node:fs/promises";
+import { mkdtemp, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawn } from "node:child_process";
@@ -14,7 +14,7 @@ async function run(world, input) {
     world.directory ??= await mkdtemp(join(tmpdir(), "yoink-command-"));
     await writeFile(join(world.directory, "plan.json"), world.plan);
   }
-  const arguments_ = world.argument === undefined ? ["plan.json"] : world.argument ? [world.argument] : [];
+  const arguments_ = world.arguments ?? (world.argument === undefined ? ["plan.json"] : world.argument ? [world.argument] : []);
   const child = spawn(process.execPath, [join(process.cwd(), "dist/cli.js"), ...arguments_], {
     cwd: world.directory,
     stdio: ["pipe", "pipe", "pipe"],
@@ -57,7 +57,30 @@ Given("a root command collection has a command that prints {string} and sets {st
 });
 
 Given("the next command reads standard input", async function () {
-  this.commands.push({ label: "destination", run: "sed 's/^/received:/'" });
+  this.commands.push({
+    label: "destination",
+    run: this.streaming ? "cat > consumer-received" : "sed 's/^/received:/'",
+  });
+  await writeFile(join(this.directory, "plan.json"), JSON.stringify({ commands: this.commands }));
+});
+
+Given("a root command collection has a piped command that stays active after writing {string}", async function (output) {
+  this.directory = await mkdtemp(join(tmpdir(), "yoink-pipe-"));
+  this.streaming = true;
+  this.commands = [{
+    label: "source",
+    run: `printf ${output}; sleep 0.5; touch producer-finished`,
+    pipe: true,
+  }];
+});
+
+Given("a root command collection has a failing piped producer and a successful consumer", async function () {
+  this.pipefail = true;
+  this.directory = await mkdtemp(join(tmpdir(), "yoink-pipefail-"));
+  this.commands = [
+    { label: "source", run: "printf producer; false", pipe: true },
+    { label: "destination", run: "cat >/dev/null" },
+  ];
   await writeFile(join(this.directory, "plan.json"), JSON.stringify({ commands: this.commands }));
 });
 
@@ -103,6 +126,11 @@ When("the caller runs Yoink with the plan", async function () {
   await run(this, this.stdin);
 });
 
+When("the caller runs Yoink with {string}", async function (option) {
+  this.arguments = [option, "plan.json"];
+  await run(this, this.stdin);
+});
+
 When("the caller runs Yoink", async function () {
   await run(this, this.stdin);
 });
@@ -127,8 +155,19 @@ Then("the next command receives {string} on standard input", function (argument)
   assert.match(this.result.stdout.toString(), new RegExp(`received:${argument}`));
 });
 
+Then("the next command receives {string} before the piped command exits", async function (_output) {
+  const consumer = await stat(join(this.directory, "consumer-received"));
+  const producer = await stat(join(this.directory, "producer-finished"));
+  assert.ok(consumer.mtimeMs < producer.mtimeMs);
+});
+
+Then("Yoink exits successfully", function () {
+  assert.equal(this.result.status, 0);
+});
+
 Then("Yoink exits with a non-zero status", function () {
   assert.notEqual(this.result.status, 0);
+  if (this.pipefail) assert.match(this.result.stdout.toString(), /label: destination/);
 });
 
 Then("Yoink exits with a non-zero status before executing a retrieval command", function () {
