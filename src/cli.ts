@@ -10,7 +10,6 @@ type Command = {
 	timeout?: number;
 	cwd?: string;
 	pipe?: boolean;
-	stdin?: "args";
 };
 
 type Result = {
@@ -79,7 +78,7 @@ async function main() {
 		if (typeof command.run !== "string" || command.run === "")
 			return invalid(`${path}.run`);
 		for (const key of Object.keys(command)) {
-			if (!["label", "run", "timeout", "cwd", "pipe", "stdin"].includes(key))
+			if (!["label", "run", "timeout", "cwd", "pipe"].includes(key))
 				return invalid(`${path}.${key}`);
 		}
 		if (
@@ -98,8 +97,6 @@ async function main() {
 		}
 		if ("pipe" in command && typeof command.pipe !== "boolean")
 			return invalid(`${path}.pipe`);
-		if ("stdin" in command && command.stdin !== "args")
-			return invalid(`${path}.stdin`);
 	}
 
 	let activeChild: ReturnType<typeof spawn> | undefined;
@@ -113,21 +110,18 @@ async function main() {
 	let pipedStdout: Buffer | undefined;
 	for (const command of plan.commands as Command[]) {
 		const startedAt = Date.now();
-		const child = spawn(
-			command.run,
-			command.stdin === "args" && pipedStdout ? [pipedStdout.toString()] : [],
-			{
-				cwd: command.cwd,
-				detached: true,
-				shell: true,
-				stdio: ["ignore", "pipe", "pipe"],
-			},
-		);
+		const child = spawn(command.run, [], {
+			cwd: command.cwd,
+			detached: true,
+			shell: true,
+			stdio: [pipedStdout ? "pipe" : "ignore", "pipe", "pipe"],
+		});
 		activeChild = child;
+		child.stdin?.end(pipedStdout);
 		const stdout: Buffer[] = [];
 		const stderr: Buffer[] = [];
-		child.stdout.on("data", (chunk: Buffer) => stdout.push(chunk));
-		child.stderr.on("data", (chunk: Buffer) => stderr.push(chunk));
+		child.stdout?.on("data", (chunk: Buffer) => stdout.push(chunk));
+		child.stderr?.on("data", (chunk: Buffer) => stderr.push(chunk));
 		let timedOut = false;
 		const timeout = setTimeout(
 			() => {

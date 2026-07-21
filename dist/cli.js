@@ -53,7 +53,7 @@ async function main() {
         if (typeof command.run !== "string" || command.run === "")
             return invalid(`${path}.run`);
         for (const key of Object.keys(command)) {
-            if (!["label", "run", "timeout", "cwd", "pipe", "stdin"].includes(key))
+            if (!["label", "run", "timeout", "cwd", "pipe"].includes(key))
                 return invalid(`${path}.${key}`);
         }
         if ("timeout" in command &&
@@ -72,8 +72,6 @@ async function main() {
         }
         if ("pipe" in command && typeof command.pipe !== "boolean")
             return invalid(`${path}.pipe`);
-        if ("stdin" in command && command.stdin !== "args")
-            return invalid(`${path}.stdin`);
     }
     let activeChild;
     process.once("SIGTERM", () => {
@@ -85,17 +83,18 @@ async function main() {
     let pipedStdout;
     for (const command of plan.commands) {
         const startedAt = Date.now();
-        const child = spawn(command.run, command.stdin === "args" && pipedStdout ? [pipedStdout.toString()] : [], {
+        const child = spawn(command.run, [], {
             cwd: command.cwd,
             detached: true,
             shell: true,
-            stdio: ["ignore", "pipe", "pipe"],
+            stdio: [pipedStdout ? "pipe" : "ignore", "pipe", "pipe"],
         });
         activeChild = child;
+        child.stdin?.end(pipedStdout);
         const stdout = [];
         const stderr = [];
-        child.stdout.on("data", (chunk) => stdout.push(chunk));
-        child.stderr.on("data", (chunk) => stderr.push(chunk));
+        child.stdout?.on("data", (chunk) => stdout.push(chunk));
+        child.stderr?.on("data", (chunk) => stderr.push(chunk));
         let timedOut = false;
         const timeout = setTimeout(() => {
             timedOut = true;

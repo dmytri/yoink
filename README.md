@@ -69,9 +69,8 @@ npx @dk/yoink - <<'JSON'
       "pipe": true
     },
     {
-      "label": "Piped path arguments",
-      "run": "printf '%s\\n' \"$@\"",
-      "stdin": "args"
+      "label": "Piped paths",
+      "run": "sed 's/^/Piped path: /'"
     }
   ]
 }

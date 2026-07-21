@@ -1,6 +1,6 @@
 {
   "name": "@dk/yoink",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "Yoink executes a retrieval plan and bundles the results into model-ready multipart Markdown.",
   "files": [
     "dist",

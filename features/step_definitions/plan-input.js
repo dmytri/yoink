@@ -56,8 +56,8 @@ Given("a root command collection has a command that prints {string} and sets {st
   this.commands = [{ label: "source", run: `printf ${output}`, [field]: true }];
 });
 
-Given("the next command sets {string} to {string}", async function (field, value) {
-  this.commands.push({ label: "destination", run: "printf 'received:%s' \"$@\"", [field]: value });
+Given("the next command reads standard input", async function () {
+  this.commands.push({ label: "destination", run: "sed 's/^/received:/'" });
   await writeFile(join(this.directory, "plan.json"), JSON.stringify({ commands: this.commands }));
 });
 
@@ -87,6 +87,7 @@ Given(/a plan whose (.+) is invalid/, async function (invalidValue) {
     "empty command run": { commands: [{ label: "retrieval", run: "" }] },
     "unknown top-level field": { commands: [], unexpected: true },
     "unknown command field": { commands: [{ label: "retrieval", run: "printf executed", extra: true }] },
+    "command stdin": { commands: [{ label: "retrieval", run: "printf executed", stdin: "args" }] },
     "non-positive command timeout": { commands: [{ label: "retrieval", run: "printf executed", timeout: 0 }] },
     "non-directory command cwd": { commands: [{ label: "retrieval", run: "printf executed", cwd: "missing" }] },
   };
@@ -121,7 +122,7 @@ Then("Yoink prints usage and exits successfully", function () {
   assert.match(this.result.stdout.toString(), /usage/i);
 });
 
-Then("the next command receives {string} as an argument", function (argument) {
+Then("the next command receives {string} on standard input", function (argument) {
   assert.equal(this.result.status, 0);
   assert.match(this.result.stdout.toString(), new RegExp(`received:${argument}`));
 });

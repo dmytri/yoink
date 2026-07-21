@@ -21,9 +21,9 @@ Feature: Retrieval plan input
 
   Scenario: A command pipes stdout to the next command
     Given a root command collection has a command that prints "main" and sets "pipe" to true
-    And the next command sets "stdin" to "args"
+    And the next command reads standard input
     When the caller runs Yoink with the plan
-    Then the next command receives "main" as an argument
+    Then the next command receives "main" on standard input
 
   Scenario: Malformed plan input is rejected
     Given a plan file contains malformed JSON
@@ -45,5 +45,6 @@ Feature: Retrieval plan input
       | empty command run               | $.commands[0].run     |
       | unknown top-level field         | $.unexpected          |
       | unknown command field           | $.commands[0].extra   |
+      | command stdin                   | $.commands[0].stdin   |
       | non-positive command timeout    | $.commands[0].timeout |
       | non-directory command cwd       | $.commands[0].cwd     |
