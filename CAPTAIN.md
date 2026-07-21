@@ -69,3 +69,7 @@ Binding behaviour lives in `.feature` specs and referenced `assets/**`. History 
 - A later QM run appended three focused green records to `coverage/runrecord.json`, including a current role-advanced deck hash. Boatswain still reported no run record and left `watchbill.json` in place. The file existed after its report, so custody must read a different state or applies a different hash calculation.
 - Boatswain also left `skills/yoink/SKILL.md` unstaged as undecidable, although QM named that file in the target's durable scope and Crew changed it to make the focused target pass. The Boatswain dispatch carries scenario references only, so its authorship decision cannot receive QM's file attribution.
 - Agent deadlock: Captain could not complete harbour entry because Boatswain requires spent-watch evidence but its contract excludes that evidence. Captain did not send the prohibited prose because Boatswain is required to reject extra dispatch content as contamination. Captain also could not make the custody commit because Shipshape assigns that action to Boatswain. The process has no defined escalation or durable evidence channel for this contradiction.
+
+## Conventions
+
+- Trunk-based development: push to `origin/main` directly. No feature branches or PRs.
