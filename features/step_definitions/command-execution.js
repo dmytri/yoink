@@ -77,10 +77,11 @@ When("Yoink receives a termination signal", async function () {
   this.directory ??= await mkdtemp(join(tmpdir(), "yoink-signal-"));
   await writeFile(join(this.directory, "plan.json"), this.plan);
   this.child = spawn(process.execPath, [join(process.cwd(), "dist/cli.js"), "plan.json"], { cwd: this.directory });
+  const closed = new Promise((resolve) => this.child.on("close", (_code, signal) => resolve(signal)));
   await new Promise((resolve) => setTimeout(resolve, 100));
   this.signalledAt = Date.now();
   this.child.kill("SIGTERM");
-  this.signal = await new Promise((resolve) => this.child.on("close", (_code, signal) => resolve(signal)));
+  this.signal = await closed;
   this.signalElapsed = Date.now() - this.signalledAt;
 });
 
@@ -93,7 +94,7 @@ Then("the command result names the resolved working directory", function () {
 });
 
 Then("the command result is marked timed out", function () {
-  assert.match(this.result.stdout.toString(), /timed out/);
+  assert.match(this.result.stdout.toString(), /"timedOut":true/);
 });
 
 Then("the command result is not marked timed out", function () {
@@ -120,4 +121,50 @@ Then("Yoink terminates the active child process group", function () {
 
 Then("Yoink exits with the signal-derived status", function () {
   assert.equal(this.signal, "SIGTERM");
+});
+
+Given("a plan command ignores SIGTERM without a timeout value", function () {
+  setPlan(this, [{ label: "ignores-sigterm", run: "trap '' SIGTERM; sleep 1.2" }]);
+});
+
+Given("a plan has a three-command pipeline", function () {
+  setPlan(this, [
+    { label: "first", run: "printf first; sleep 2", pipe: true },
+    { label: "second", run: "sed 's/^/received:/'", pipe: true },
+    { label: "third", run: "cat" },
+  ]);
+});
+
+Then("every pipeline member exits", async function () {
+  assert.ok(this.signalElapsed < 5000);
+  assert.equal(this.signal, "SIGTERM");
+});
+
+Given("a plan command exceeds {string}", function (_flag) {
+  setPlan(this, [{ label: "verbose", run: "printf 'abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'" }]);
+});
+
+When("the caller runs Yoink with {string} and the plan", async function (args) {
+  this.directory ??= await mkdtemp(join(tmpdir(), "yoink-command-"));
+  await writeFile(join(this.directory, "plan.json"), this.plan);
+  const parts = args.split(" ");
+  const child = spawn(process.execPath, [join(process.cwd(), "dist/cli.js"), ...parts, "plan.json"], {
+    cwd: this.directory,
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  const collect = (stream) => new Promise((resolve) => {
+    const chunks = [];
+    stream.on("data", (chunk) => chunks.push(chunk));
+    stream.on("end", () => resolve(Buffer.concat(chunks)));
+  });
+  const [stdout, stderr, status] = await Promise.all([
+    collect(child.stdout),
+    collect(child.stderr),
+    new Promise((resolve) => child.on("close", (code, signal) => resolve({ code, signal }))),
+  ]);
+  this.result = { stdout, stderr, ...status };
+});
+
+Then("the command result indicates stdout was truncated", function () {
+  assert.match(this.result.stdout.toString(), /truncated/);
 });

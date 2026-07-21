@@ -19,6 +19,29 @@ Feature: Retrieval plan input
     When the caller runs Yoink
     Then Yoink prints usage and exits successfully
 
+  Scenario: Help flag prints usage
+    Given the caller provides "--help"
+    When the caller runs Yoink
+    Then Yoink prints usage and exits successfully
+
+  Scenario: Version flag prints version
+    Given the caller provides "--version"
+    When the caller runs Yoink
+    Then Yoink prints the package version and exits successfully
+
+  Scenario: A missing plan file prints a diagnostic
+    Given a plan file is missing
+    When the caller runs Yoink with the plan
+    Then Yoink prints a diagnostic for the missing file to standard error
+    And Yoink exits with a non-zero status
+
+  Scenario: Extra arguments are rejected
+    Given a plan file named "plan.json" contains a root command collection with one retrieval command
+    And the caller provides an extra argument
+    When the caller runs Yoink
+    Then Yoink prints a diagnostic for the extra argument to standard error
+    And Yoink exits with a non-zero status
+
   Scenario: A command pipes stdout to the next command
     Given a root command collection has a command that prints "main" and sets "pipe" to true
     And the next command reads standard input

@@ -1,13 +1,17 @@
 {
   "name": "@dk/yoink",
   "version": "0.1.6",
-  "description": "Yoink executes a retrieval plan and bundles the results into model-ready multipart Markdown.",
+  "description": "Yoink executes a retrieval plan and bundles the results into a model-ready multipart MIME bundle.",
   "files": [
     "dist",
     "README.md",
     "skills/yoink"
   ],
   "scripts": {
+    "test": "cucumber-js --tags '@logic and not @captain and not @shipwright'",
+    "typecheck": "tsc src/cli.ts --noEmit --target ES2022 --module NodeNext --moduleResolution NodeNext --types node",
+    "lint": "gplint && biome check src",
+    "verify": "npm run typecheck && npm run lint && npm test",
     "build": "tsc src/cli.ts --target ES2022 --module NodeNext --moduleResolution NodeNext --types node --outDir dist --rootDir src",
     "prepare": "npm run build && chmod +x dist/cli.js && ln -sf ../../dist/cli.js node_modules/.bin/yoink"
   },
@@ -19,6 +23,15 @@
   "engines": {
     "node": ">=22.19"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dmytri/yoink.git"
+  },
+  "license": "0BSD",
+  "bugs": {
+    "url": "https://github.com/dmytri/yoink/issues"
+  },
+  "homepage": "https://github.com/dmytri/yoink",
   "devDependencies": {
     "@biomejs/biome": "2.5.5",
     "@cucumber/cucumber": "13.2.0",

@@ -7,6 +7,25 @@ function invalid(path) {
     process.stderr.write(`${path} is invalid\n`);
     process.exitCode = 1;
 }
+function usage() {
+    process.stdout.write([
+        "usage: yoink [--pipefail|--no-pipefail] [--max-bytes <n>] <plan>",
+        "",
+        'A plan is a JSON file or stdin stream with a "commands" array.',
+        'Each command needs "label" and "run". Optional fields:',
+        "  cwd       working directory (relative to Yoink's CWD)",
+        "  timeout   seconds before the command is killed (default: 1)",
+        "  pipe      send stdout to the next command's stdin",
+        "  capture   include a piped command's stdout in the output bundle",
+        "",
+        "Examples:",
+        "  yoink plan.json",
+        "  cat plan.json | yoink -",
+        "  yoink --pipefail plan.json",
+        "  yoink --no-pipefail plan.json",
+        "",
+    ].join("\n"));
+}
 /**
  * @planks("the caller runs {string}")
  * @planks("the caller runs Yoink with the plan")
@@ -17,31 +36,46 @@ function invalid(path) {
  * @planks("Yoink exits with a non-zero status before executing a retrieval command")
  * @planks("a plan whose (.+) is invalid")
  * @planks("a plan command has a cwd that points to a file")
+ * @planks("the caller runs Yoink with {string} and the plan")
+ * @planks("the caller provides {string}")
  */
 async function main() {
-    const [option, planArgument] = process.argv.slice(2);
-    const pipefail = option !== "--no-pipefail";
-    const argument = option === "--pipefail" || option === "--no-pipefail"
-        ? planArgument
-        : option;
+    const args = process.argv.slice(2);
+    if (args.includes("--help")) {
+        usage();
+        return;
+    }
+    if (args.includes("--version")) {
+        const pkg = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
+        process.stdout.write(`${pkg.version}\n`);
+        return;
+    }
+    let pipefail = true;
+    let maxBytes;
+    const filtered = [];
+    for (let i = 0; i < args.length; i++) {
+        const arg = args[i];
+        if (arg === "--pipefail") {
+            pipefail = true;
+        }
+        else if (arg === "--no-pipefail") {
+            pipefail = false;
+        }
+        else if (arg === "--max-bytes" && i + 1 < args.length) {
+            maxBytes = Number.parseInt(args[++i], 10);
+        }
+        else {
+            filtered.push(arg);
+        }
+    }
+    if (filtered.length > 1) {
+        process.stderr.write(`unexpected argument: ${filtered[1]}\n`);
+        process.exitCode = 1;
+        return;
+    }
+    const argument = filtered[0];
     if (argument === undefined) {
-        process.stdout.write([
-            "usage: yoink [--pipefail|--no-pipefail] <plan>",
-            "",
-            'A plan is a JSON file or stdin stream with a "commands" array.',
-            'Each command needs "label" and "run". Optional fields:',
-            "  cwd       working directory (relative to Yoink's CWD)",
-            "  timeout   seconds before the command is killed (default: 1)",
-            "  pipe      send stdout to the next command's stdin",
-            "  capture   include a piped command's stdout in the output bundle",
-            "",
-            "Examples:",
-            "  yoink plan.json",
-            "  cat plan.json | yoink -",
-            "  yoink --pipefail plan.json",
-            "  yoink --no-pipefail plan.json",
-            "",
-        ].join("\n"));
+        usage();
         return;
     }
     let input;
@@ -96,12 +130,18 @@ async function main() {
         if ("capture" in command && typeof command.capture !== "boolean")
             return invalid(`${path}.capture`);
     }
-    let activeChild;
-    process.once("SIGTERM", () => {
-        if (activeChild?.pid !== undefined)
-            process.kill(-activeChild.pid, "SIGTERM");
+    const childProcessGroups = new Set();
+    const sigterm = () => {
+        for (const pgid of childProcessGroups) {
+            try {
+                process.kill(pgid, "SIGTERM");
+            }
+            catch { }
+        }
+        process.removeListener("SIGTERM", sigterm);
         process.kill(process.pid, "SIGTERM");
-    });
+    };
+    process.on("SIGTERM", sigterm);
     const results = [];
     /** @planks("the caller runs Yoink with the plan") */
     const execute = (command, piped = false) => {
@@ -112,7 +152,8 @@ async function main() {
             shell: true,
             stdio: [piped ? "pipe" : "ignore", "pipe", "pipe"],
         });
-        activeChild = child;
+        if (child.pid !== undefined)
+            childProcessGroups.add(-child.pid);
         const stdout = [];
         const stderr = [];
         child.stdout?.on("data", (chunk) => stdout.push(chunk));
@@ -125,18 +166,34 @@ async function main() {
         }, (command.timeout ?? 1) * 1000);
         const status = new Promise((resolve) => child.on("close", (code, signal) => resolve({ code, signal }))).then(async (status) => {
             clearTimeout(timeout);
-            if (activeChild === child)
-                activeChild = undefined;
+            if (child.pid !== undefined)
+                childProcessGroups.delete(-child.pid);
+            let stdoutBuf = command.pipe && !command.capture
+                ? Buffer.alloc(0)
+                : Buffer.concat(stdout);
+            let stderrBuf = Buffer.concat(stderr);
+            let stdoutTruncated = false;
+            let stderrTruncated = false;
+            if (maxBytes !== undefined) {
+                if (stdoutBuf.length > maxBytes) {
+                    stdoutBuf = stdoutBuf.subarray(0, maxBytes);
+                    stdoutTruncated = true;
+                }
+                if (stderrBuf.length > maxBytes) {
+                    stderrBuf = stderrBuf.subarray(0, maxBytes);
+                    stderrTruncated = true;
+                }
+            }
             return {
                 command,
                 cwd: command.cwd ? await realpath(command.cwd) : process.cwd(),
-                stdout: command.pipe && !command.capture
-                    ? Buffer.alloc(0)
-                    : Buffer.concat(stdout),
-                stderr: Buffer.concat(stderr),
+                stdout: stdoutBuf,
+                stderr: stderrBuf,
                 ...status,
                 duration: Date.now() - startedAt,
                 timedOut,
+                stdoutTruncated,
+                stderrTruncated,
             };
         });
         return { child, status };
@@ -158,24 +215,38 @@ async function main() {
             process.exitCode = 1;
         index += 1;
     }
-    const metadata = (result) => Buffer.from(`label: ${result.command.label}\ncommand: ${result.command.run}\nworking directory: ${result.cwd}\nexit code: ${result.code}\nduration: ${result.duration}\ntimeout: ${result.timedOut ? "timed out" : "no"}\n`);
-    const bodies = results.flatMap((result) => [
-        metadata(result),
+    const metadata = (result, index) => Buffer.from(JSON.stringify({
+        index,
+        label: result.command.label,
+        command: result.command.run,
+        cwd: result.cwd,
+        exitCode: result.code,
+        signal: result.signal,
+        durationMs: result.duration,
+        timeoutSeconds: result.command.timeout ?? 1,
+        timedOut: result.timedOut,
+        stdout_truncated: result.stdoutTruncated,
+        stderr_truncated: result.stderrTruncated,
+    }));
+    const bodies = results.flatMap((result, i) => [
+        metadata(result, i),
         result.stdout,
         result.stderr,
     ]);
     let boundary = `yoink-${randomUUID()}`;
     while (bodies.some((body) => body.includes(boundary)))
         boundary = `yoink-${randomUUID()}`;
+    const crlf = "\r\n";
     const parts = [
-        Buffer.from(`Content-Type: multipart/mixed; boundary=${boundary}\n`),
+        Buffer.from(`Content-Type: multipart/mixed; boundary=${boundary}${crlf}`),
     ];
-    for (const result of results) {
-        parts.push(Buffer.from(`--${boundary}\nContent-Type: text/plain\nContent-Disposition: form-data; name="metadata"\n\n`), metadata(result));
-        parts.push(Buffer.from(`\n--${boundary}\nContent-Type: application/octet-stream\nContent-Disposition: form-data; name="stdout"\n\n`), result.stdout);
-        parts.push(Buffer.from(`\n--${boundary}\nContent-Type: application/octet-stream\nContent-Disposition: form-data; name="stderr"\n\n`), result.stderr);
+    for (let i = 0; i < results.length; i++) {
+        const result = results[i];
+        parts.push(Buffer.from(`--${boundary}${crlf}Content-Type: application/json${crlf}Content-Disposition: form-data; name="metadata"${crlf}${crlf}`), metadata(result, i));
+        parts.push(Buffer.from(`${crlf}--${boundary}${crlf}Content-Type: application/octet-stream${crlf}Content-Disposition: form-data; name="stdout"${crlf}${crlf}`), result.stdout);
+        parts.push(Buffer.from(`${crlf}--${boundary}${crlf}Content-Type: application/octet-stream${crlf}Content-Disposition: form-data; name="stderr"${crlf}${crlf}`), result.stderr);
     }
-    parts.push(Buffer.from(`\n--${boundary}--\n`));
+    parts.push(Buffer.from(`${crlf}--${boundary}--${crlf}`));
     process.stdout.write(Buffer.concat(parts));
 }
 await main();

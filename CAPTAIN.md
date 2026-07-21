@@ -73,3 +73,16 @@ Binding behaviour lives in `.feature` specs and referenced `assets/**`. History 
 ## Conventions
 
 - Trunk-based development: push to `origin/main` directly. No feature branches or PRs.
+
+## Hardening Roadmap (from code review, 2026-07-21)
+
+Priority order recommended by reviewer:
+
+1. **SIGKILL escalation & process-group tracking** — Timeout sends SIGTERM once then waits forever. Replace `activeChild` (single ref) with a `Set` of all active process groups. On timeout send SIGTERM, wait grace period, then SIGKILL. Catch ESRCH.
+2. **Reject terminal `pipe` and orphaned `capture`** — `pipe: true` on final command silently drops stdout. `capture: true` without `pipe` is meaningless. Add validation.
+3. **Stream uncaptured producer output; add `--max-bytes`** — Currently buffers all stdout in memory even when omitted from bundle. Only collect when `!command.pipe \|\| command.capture`. Add global `--max-bytes` budget with truncation metadata.
+4. **Serialize metadata as JSON** — Current plain-text metadata is forgeable via newlines in `label`/`run`. Switch to JSON with `index`, `label`, `command`, `cwd`, `exitCode`, `signal`, `durationMs`, `timeoutSeconds`, `timedOut`, `stdoutTruncated`, `stderrTruncated`.
+5. **CRLF-correct multipart framing** — Use `\r\n` instead of bare `\n` for MIME conformance. Revisit `Content-Disposition: form-data` under `multipart/mixed`.
+6. **CLI error handling** — Add `--help`, `--version`. Catch missing-file and parse errors instead of stack traces. Reject extra arguments.
+7. **Comparative evaluation** — Paired benchmark: same five-retrieval task with/without Yoink. Measure invocations, tool calls, latency, tokens, correctness.
+8. **Package metadata** — Add `license`, `repository`, `bugs`, `homepage`, standard npm scripts (`test`, `typecheck`, `lint`, `verify`). Fix description ("multipart Markdown" → accurate). Reconcile Node version docs.

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { mkdtemp, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -197,4 +198,32 @@ Then("Yoink writes a validation diagnostic for {string} to standard error", func
 
 Then("Yoink does not execute a retrieval command", function () {
   assert.doesNotMatch(this.result.stdout.toString(), /executed/);
+});
+
+Given("the caller provides {string}", function (flag) {
+  this.argument = flag;
+  this.directory = process.cwd();
+});
+
+Then("Yoink prints the package version and exits successfully", function () {
+  assert.equal(this.result.status, 0);
+  const pkg = JSON.parse(readFileSync(join(process.cwd(), "package.json"), "utf8"));
+  assert.match(this.result.stdout.toString(), new RegExp(pkg.version));
+});
+
+Given("a plan file is missing", async function () {
+  this.directory = await mkdtemp(join(tmpdir(), "yoink-missing-"));
+  this.argument = "no-such-file.json";
+});
+
+Then("Yoink prints a diagnostic for the missing file to standard error", function () {
+  assert.match(this.result.stderr.toString(), /no such file|not found|enoent/i);
+});
+
+Given("the caller provides an extra argument", function () {
+  this.arguments = ["plan.json", "extra-arg"];
+});
+
+Then("Yoink prints a diagnostic for the extra argument to standard error", function () {
+  assert.match(this.result.stderr.toString(), /extra|unexpected|argument/i);
 });
