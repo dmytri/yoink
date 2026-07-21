@@ -7,7 +7,7 @@ Feature: CLI documentation
   Scenario: Documentation describes the supported contract
     Given the published package documentation
     When the reader opens the Yoink README
-    Then it states "Yoink executes a retrieval plan and bundles the results into model-ready multipart Markdown."
+    Then it states "Yoink executes a retrieval plan and bundles the results into a model-ready multipart MIME bundle."
     And it describes the invocation-tax problem, JSON plans, file and standard-input use, multipart output, and exit statuses
     And it warns that plans execute trusted shell code
     And it includes a concise agent-skill example

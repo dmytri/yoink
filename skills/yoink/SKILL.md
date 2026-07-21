@@ -6,7 +6,7 @@ description: Batch stable retrieval commands into one Yoink multipart context bu
 <!-- @planks("When the agent gathers the requested context") -->
 # Yoink
 
-Use Yoink when several stable shell commands gather context. Run `npx @dk/yoink`.
+Use Yoink when several stable shell commands gather context. Stable retrievals are commands that can be chosen before inspecting their results. Deterministic shell pipelines may pass one command's output to another. Run `npx @dk/yoink`.
 
 ## Inline plan
 
@@ -45,14 +45,16 @@ npx @dk/yoink retrieval-plan.json
 
 Give every requested command one `commands` entry with a concise `label` and its exact `run` shell command. Optional fields per command:
 
-- `cwd` — working directory relative to Yoink's start directory
+- `cwd` — working directory relative to Yoink's start directory, or absolute
 - `timeout` — seconds before kill (default 1)
 - `pipe` — send stdout to next command's stdin
-- `capture` — include piped stdout in the bundle
+- `capture` — include stdout in the bundle. Default: `true` unless `pipe` is `true`. Set `false` to suppress output when only side effects matter
 
 ## Piping guidance
 
 Use `pipe` when a later command needs earlier output as input. The piped command's stdout is excluded from the bundle by default. Set `"capture": true` to keep it in the bundle (e.g., when the piped file listing also carries needed evidence).
+
+Use `"capture": false` on a standalone command to suppress its stdout when you only want its side effects (e.g. writing a file, seeding state).
 
 ## Reading the bundle
 

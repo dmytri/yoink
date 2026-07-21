@@ -1,6 +1,6 @@
 # @dk/yoink
 
-> Yoink executes a retrieval plan and bundles the results into model-ready multipart Markdown.
+> Yoink executes a retrieval plan and bundles the results into a model-ready multipart MIME bundle.
 
 Agents often need several predictable retrieval commands before they can act. Calling those commands one at a time costs a model invocation per command. Yoink runs an ordered retrieval plan in one process and returns one complete bundle.
 
@@ -17,13 +17,13 @@ Yoink requires Node.js 22 or later and a POSIX shell.
 A plan is a JSON object with an ordered `commands` array. Each command is an object with these fields:
 
 | Field | Required | Type | Description |
-|---|---|---|---|
+|---|---|---|---|---|
 | `label` | yes | string | Human-readable name for the result |
 | `run` | yes | string | Shell command to execute |
-| `cwd` | no | string | Working directory, relative to Yoink's starting directory |
+| `cwd` | no | string | Working directory, relative to Yoink's starting directory or absolute |
 | `timeout` | no | number | Kill the command after this many seconds (default: 1) |
 | `pipe` | no | boolean | Pipe this command's stdout to the next command's stdin |
-| `capture` | no | boolean | Include a piped command's stdout in the output bundle (only meaningful with `pipe`)
+| `capture` | no | boolean | Include stdout in the bundle. Default: `true` unless `pipe` is `true`. Set `false` to suppress output when only side effects matter |
 
 ```json
 {
@@ -57,13 +57,15 @@ yoink <<'JSON'
 JSON
 ```
 
-Use `--pipefail` to exit non-zero when a piped producer fails. Use `--no-pipefail` to accept a failed piped producer when the consumer succeeds.
+By default (`--pipefail`), Yoink exits non-zero if any piped producer fails. Use `--no-pipefail` to accept a failed piped producer when the consumer succeeds.
 
 ## Piping
 
 Set `"pipe": true` on a command to connect its standard output to the next command's standard input. This works chained: command A pipes to B, B pipes to C.
 
-By default, a piped command's stdout is **omitted** from the output bundle — it streams to the next command instead. Set `"capture": true` on the piped command to include its stdout in the bundle too.
+By default, a piped command's stdout is **omitted** from the output bundle — it streams to the next command instead. Set `"capture": true` to include it in the bundle too.
+
+`capture` is valid on any command. Its default is `true` unless `pipe` is `true`. Use `"capture": false` to suppress stdout when only side effects matter (e.g. writing a file, seeding a database).
 
 ```json
 {
@@ -98,7 +100,7 @@ Yoink always emits the complete bundle, even after a command failure or timeout.
 
 ## Output
 
-Yoink writes a multipart MIME-style bundle to standard output. Each command result appears as three parts: metadata (label, command, working directory, exit code, duration, timeout), stdout bytes, and stderr bytes. Stream bytes are preserved verbatim — no Markdown escaping, normalization, or re-encoding.
+Yoink writes a multipart MIME bundle to standard output. Each command result appears as three parts: JSON metadata (`index`, `label`, `command`, `cwd`, `exitCode`, `signal`, `durationMs`, `timeoutSeconds`, `timedOut`, `stdout_truncated`, `stderr_truncated`), stdout bytes, and stderr bytes. Stream bytes are preserved verbatim.
 
 ## Agent Skills
 
