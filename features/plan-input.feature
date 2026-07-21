@@ -32,7 +32,7 @@ Feature: Retrieval plan input
   Scenario: A missing plan file prints a diagnostic
     Given a plan file is missing
     When the caller runs Yoink with the plan
-    Then Yoink prints a diagnostic for the missing file to standard error
+    Then Yoink prints a compact diagnostic for the missing file to standard error
     And Yoink exits with a non-zero status
 
   Scenario: Extra arguments are rejected
@@ -67,7 +67,8 @@ Feature: Retrieval plan input
   Scenario: Malformed plan input is rejected
     Given a plan file contains malformed JSON
     When the caller runs Yoink with the plan
-    Then Yoink exits with a non-zero status before executing a retrieval command
+    Then Yoink prints a compact diagnostic for invalid JSON to standard error
+    And Yoink exits with a non-zero status before executing a retrieval command
 
   Scenario Outline: An invalid plan identifies its invalid JSON path
     Given a plan whose <invalid value> is invalid
@@ -111,3 +112,29 @@ Feature: Retrieval plan input
     When the caller runs Yoink with the plan
     Then Yoink exits with a non-zero status
     And Yoink writes a validation diagnostic for "$.commands[0].cwd" to standard error
+
+  Scenario: Unknown options are rejected
+    Given the caller provides "--unknown-option"
+    When the caller runs Yoink
+    Then Yoink prints a diagnostic for the unknown option to standard error
+    And Yoink exits with a non-zero status
+
+  Scenario: A missing --max-bytes value is rejected
+    Given the caller provides "--max-bytes"
+    When the caller runs Yoink
+    Then Yoink prints a diagnostic for the missing flag value to standard error
+    And Yoink exits with a non-zero status
+
+  Scenario Outline: An invalid --max-bytes value is rejected
+    Given the caller provides "<flag>"
+    When the caller runs Yoink with the plan
+    Then Yoink prints a diagnostic for the invalid flag value to standard error
+    And Yoink exits with a non-zero status
+
+    Examples:
+      | flag              |
+      | --max-bytes 0     |
+      | --max-bytes -1    |
+      | --max-bytes NaN   |
+      | --max-bytes 64x   |
+      | --max-bytes 64 --max-bytes 128 |

@@ -74,15 +74,25 @@ Binding behaviour lives in `.feature` specs and referenced `assets/**`. History 
 
 - Trunk-based development: push to `origin/main` directly. No feature branches or PRs.
 
-## Hardening Roadmap (from code review, 2026-07-21)
+## Hardening Review Verdict (2026-07-21)
 
-Priority order recommended by reviewer:
+Inspected `main` at `53be604`. Items 1, 4, 5, 6, 8 from the original roadmap are properly improved. Items 2, 3, 7 are still incomplete.
 
-1. **SIGKILL escalation & process-group tracking** — Timeout sends SIGTERM once then waits forever. Replace `activeChild` (single ref) with a `Set` of all active process groups. On timeout send SIGTERM, wait grace period, then SIGKILL. Catch ESRCH.
-2. **Reject terminal `pipe` and orphaned `capture`** — `pipe: true` on final command silently drops stdout. `capture: true` without `pipe` is meaningless. Add validation.
-3. **Stream uncaptured producer output; add `--max-bytes`** — Currently buffers all stdout in memory even when omitted from bundle. Only collect when `!command.pipe \|\| command.capture`. Add global `--max-bytes` budget with truncation metadata.
-4. **Serialize metadata as JSON** — Current plain-text metadata is forgeable via newlines in `label`/`run`. Switch to JSON with `index`, `label`, `command`, `cwd`, `exitCode`, `signal`, `durationMs`, `timeoutSeconds`, `timedOut`, `stdoutTruncated`, `stderrTruncated`.
-5. **CRLF-correct multipart framing** — Use `\r\n` instead of bare `\n` for MIME conformance. Revisit `Content-Disposition: form-data` under `multipart/mixed`.
-6. **CLI error handling** — Add `--help`, `--version`. Catch missing-file and parse errors instead of stack traces. Reject extra arguments.
-7. **Comparative evaluation** — Paired benchmark: same five-retrieval task with/without Yoink. Measure invocations, tool calls, latency, tokens, correctness.
-8. **Package metadata** — Add `license`, `repository`, `bugs`, `homepage`, standard npm scripts (`test`, `typecheck`, `lint`, `verify`). Fix description ("multipart Markdown" → accurate). Reconcile Node version docs.
+### Still critical
+
+1. **No SIGKILL escalation** — Timeout sends one SIGTERM and waits indefinitely. No grace → SIGKILL path. No ESRCH protection. The `trap '' SIGTERM; sleep 1.2` test does not prove escalation because `sleep` receives the group signal. Need a process group that survives SIGTERM, an external deadline, and assertion that Yoink sends SIGKILL.
+2. **No SIGINT handler** — Only SIGTERM is handled. Children are detached process groups and may not receive terminal SIGINT. Same cleanup routine must handle at least SIGINT and SIGTERM.
+3. **`--max-bytes` does not bound memory** — All chunks accumulated without limit; only trimmed after `close`. Need bounded collectors that retain first N bytes while draining. Uncaptured piped producer stdout also still fully buffered.
+4. **`capture: false` on standalone does not suppress stdout** — Implementation checks `command.pipe && !command.capture`. Should use `command.capture ?? !command.pipe`.
+5. **Terminal `pipe: true` still deletes stdout** — No validation preventing `pipe: true` on final command. Result assembly still suppresses stdout.
+6. **Missing files and malformed JSON produce Node stack traces** — `readFile` and `JSON.parse` unguarded. No top-level `catch` with `yoink: path: message` format.
+7. **Option validation incomplete** — `--max-bytes` accepts zero, negative, NaN, strings like `64garbage`, repeated conflicting options. Missing value makes flag the plan argument. Unknown options treated as positional.
+8. **MIME blank line missing** — `Content-Type` header directly followed by first boundary. Need `\r\n\r\n` between outer headers and multipart body.
+9. **README defects** — Table has 5 separator columns for 4 headers. Plan example has broken pipe chain (cat → sed with pipe, but cat has no pipe). Node version says "22 or later" but requires `>=22.19`.
+
+
+### Verbatim Eval Plan
+
+`assets/eval-retrieval-plan.json` is the human-runnable plan and the exact JSON Pi MUST pass to the locally packed Yoink CLI on standard input.
+
+The eval scenarios reference this asset. The next QM target makes the harness read the asset, give its bytes to Pi in the task prompt, and assert the observed Yoink stdin payload equals those bytes.

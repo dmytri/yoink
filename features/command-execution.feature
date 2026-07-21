@@ -39,23 +39,31 @@ Feature: Retrieval command execution
     Then the bundle has one stdout part with the standard output text
     And the bundle has one stderr part with the standard error text
 
-  Scenario: A command that ignores SIGTERM is killed
+  Scenario: A command that ignores SIGTERM is killed with SIGKILL
     Given a plan command ignores SIGTERM without a timeout value
     When the caller runs Yoink with the plan
-    Then the command result is marked timed out
+    Then the command result metadata signal is "SIGKILL"
+    And the command result is marked timed out
 
   Scenario: A signal terminates all pipeline members
-    Given a plan has a three-command pipeline
+    Given a plan has a three-command pipeline that records PIDs
     When Yoink receives a termination signal
-    Then every pipeline member exits
+    Then no pipeline member PID remains running after Yoink exits
 
   Scenario: Output beyond the byte limit is truncated
     Given a plan command exceeds "--max-bytes"
     When the caller runs Yoink with "--max-bytes 64" and the plan
-    Then the command result indicates stdout was truncated
+    Then the command result metadata indicates stdout was truncated
+    And the stdout body is exactly 64 bytes
 
   Scenario: A termination signal stops active child processes
     Given a plan command has an active child process
     When Yoink receives a termination signal
+    Then Yoink terminates the active child process group
+    And Yoink exits with the signal-derived status
+
+  Scenario: SIGINT terminates child process groups
+    Given a plan command has an active child process
+    When Yoink receives SIGINT
     Then Yoink terminates the active child process group
     And Yoink exits with the signal-derived status

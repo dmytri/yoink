@@ -49,3 +49,19 @@ Feature: Multipart retrieval bundle
     Given a plan has a piped producer that emits "upstream", sets "capture" to true, and a successful consumer
     When the caller runs Yoink with the plan
     Then the bundle includes the piped producer's stdout
+
+  Scenario: A standalone command with capture false omits its stdout
+    Given a plan has a standalone command that emits "payload" with capture set to false
+    When the caller runs Yoink with the plan
+    Then the bundle omits the command's stdout
+
+  Scenario: The outer content-type header is separated by a blank line
+    Given a plan has one successful command
+    When the caller runs Yoink with the plan
+    Then the bundle begins with a content-type header followed by a blank line before the first boundary
+
+  Scenario: A final command with pipe true is rejected
+    Given a plan has a final command with pipe set to true
+    When the caller runs Yoink with the plan
+    Then Yoink exits with a non-zero status
+    And Yoink writes a validation diagnostic for "$.commands[0].pipe" to standard error

@@ -115,16 +115,16 @@ Then("the bundle has one stderr part with the standard error text", function () 
 });
 
 Then("Yoink terminates the active child process group", function () {
-  assert.equal(this.signal, "SIGTERM");
+  assert.ok(this.signal === "SIGTERM" || this.signal === "SIGINT");
   assert.ok(this.signalElapsed < 1000);
 });
 
 Then("Yoink exits with the signal-derived status", function () {
-  assert.equal(this.signal, "SIGTERM");
+  assert.ok(this.signal === "SIGTERM" || this.signal === "SIGINT");
 });
 
 Given("a plan command ignores SIGTERM without a timeout value", function () {
-  setPlan(this, [{ label: "ignores-sigterm", run: "trap '' SIGTERM; sleep 1.2" }]);
+  setPlan(this, [{ label: "ignores-sigterm", run: "trap '' 15; sleep 3" }]);
 });
 
 Given("a plan has a three-command pipeline", function () {
@@ -167,4 +167,55 @@ When("the caller runs Yoink with {string} and the plan", async function (args) {
 
 Then("the command result indicates stdout was truncated", function () {
   assert.match(this.result.stdout.toString(), /truncated/);
+});
+
+Then("the command result metadata signal is {string}", function (expected) {
+  assert.match(this.result.stdout.toString(), new RegExp(`"signal":"${expected}"`));
+});
+
+Given("a plan has a three-command pipeline that records PIDs", function () {
+  this.pidFile = "pids.txt";
+  setPlan(this, [
+    { label: "first", run: `printf '%s\\n' $$ >> ${this.pidFile}; printf first; sleep 2`, pipe: true },
+    { label: "second", run: `printf '%s\\n' $$ >> ${this.pidFile}; sed 's/^/received:/'`, pipe: true },
+    { label: "third", run: `printf '%s\\n' $$ >> ${this.pidFile}; cat` },
+  ]);
+});
+
+Then("no pipeline member PID remains running after Yoink exits", async function () {
+  const contents = await readFile(join(this.directory, this.pidFile), "utf8");
+  const pids = contents.trim().split("\n").filter(Boolean);
+  for (const pid of pids) {
+    const n = parseInt(pid, 10);
+    if (Number.isNaN(n) || n > 999999) continue;
+    try {
+      process.kill(n, 0);
+      assert.fail(`PID ${pid} is still running`);
+    } catch (e) {
+      if (e.code !== "ESRCH") throw e;
+    }
+  }
+});
+
+Then("the command result metadata indicates stdout was truncated", function () {
+  assert.match(this.result.stdout.toString(), /"stdout_truncated":true/);
+});
+
+Then("the stdout body is exactly {int} bytes", function (expected) {
+  const output = this.result.stdout.toString();
+  const b = output.match(/boundary=(.+)/)?.[1];
+  const m = output.match(new RegExp(`name="stdout"\\r\\n\\r\\n(.+?)\\r\\n--${b}`, "s"));
+  assert.equal(m?.[1]?.length, expected);
+});
+
+When("Yoink receives SIGINT", async function () {
+  this.directory ??= await mkdtemp(join(tmpdir(), "yoink-signal-"));
+  await writeFile(join(this.directory, "plan.json"), this.plan);
+  this.child = spawn(process.execPath, [join(process.cwd(), "dist/cli.js"), "plan.json"], { cwd: this.directory });
+  const closed = new Promise((resolve) => this.child.on("close", (_code, signal) => resolve(signal)));
+  await new Promise((resolve) => setTimeout(resolve, 100));
+  this.signalledAt = Date.now();
+  this.child.kill("SIGINT");
+  this.signal = await closed;
+  this.signalElapsed = Date.now() - this.signalledAt;
 });

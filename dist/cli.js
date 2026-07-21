@@ -32,6 +32,7 @@ function usage() {
  * @planks("the caller runs Yoink")
  * @planks("the command prints its working directory")
  * @planks("Yoink receives a termination signal")
+ * @planks("Yoink receives SIGINT")
  * @planks("the caller redirects Yoink standard output to {string}")
  * @planks("Yoink exits with a non-zero status before executing a retrieval command")
  * @planks("a plan whose (.+) is invalid")
@@ -125,8 +126,12 @@ async function main() {
                 return invalid(`${path}.cwd`);
             }
         }
-        if ("pipe" in command && typeof command.pipe !== "boolean")
-            return invalid(`${path}.pipe`);
+        if ("pipe" in command) {
+            if (typeof command.pipe !== "boolean")
+                return invalid(`${path}.pipe`);
+            if (command.pipe && index === plan.commands.length - 1)
+                return invalid(`${path}.pipe`);
+        }
         if ("capture" in command && typeof command.capture !== "boolean")
             return invalid(`${path}.capture`);
     }
@@ -142,6 +147,17 @@ async function main() {
         process.kill(process.pid, "SIGTERM");
     };
     process.on("SIGTERM", sigterm);
+    const sigint = () => {
+        for (const pgid of childProcessGroups) {
+            try {
+                process.kill(pgid, "SIGINT");
+            }
+            catch { }
+        }
+        process.removeListener("SIGINT", sigint);
+        process.kill(process.pid, "SIGINT");
+    };
+    process.on("SIGINT", sigint);
     const results = [];
     /** @planks("the caller runs Yoink with the plan") */
     const execute = (command, piped = false) => {
@@ -161,14 +177,15 @@ async function main() {
         let timedOut = false;
         const timeout = setTimeout(() => {
             timedOut = true;
-            if (child.pid !== undefined)
-                process.kill(-child.pid, "SIGTERM");
+            if (child.pid !== undefined) {
+                process.kill(-child.pid, "SIGKILL");
+            }
         }, (command.timeout ?? 1) * 1000);
         const status = new Promise((resolve) => child.on("close", (code, signal) => resolve({ code, signal }))).then(async (status) => {
             clearTimeout(timeout);
             if (child.pid !== undefined)
                 childProcessGroups.delete(-child.pid);
-            let stdoutBuf = command.pipe && !command.capture
+            let stdoutBuf = command.capture === false || (command.pipe && command.capture !== true)
                 ? Buffer.alloc(0)
                 : Buffer.concat(stdout);
             let stderrBuf = Buffer.concat(stderr);
@@ -238,7 +255,7 @@ async function main() {
         boundary = `yoink-${randomUUID()}`;
     const crlf = "\r\n";
     const parts = [
-        Buffer.from(`Content-Type: multipart/mixed; boundary=${boundary}${crlf}`),
+        Buffer.from(`Content-Type: multipart/mixed; boundary=${boundary}${crlf}${crlf}`),
     ];
     for (let i = 0; i < results.length; i++) {
         const result = results[i];

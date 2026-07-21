@@ -181,3 +181,20 @@ Then("the bundle includes the piped producer's stdout", function () {
 Then("{string} equals the bundle Yoink writes to standard output", async function (file) {
   assert.deepEqual(await readFile(join(this.directory, file)), this.bundle);
 });
+
+Given("a plan has a standalone command that emits {string} with capture set to false", function (output) {
+  setPlan(this, { label: "standalone", run: `printf ${output}`, capture: false });
+});
+
+Then("the bundle omits the command's stdout", function () {
+  assert.equal(stdoutBodies(this)[0], "");
+});
+
+Then("the bundle begins with a content-type header followed by a blank line before the first boundary", function () {
+  const output = bundle(this).toString();
+  assert.match(output, /^Content-Type: multipart\/mixed; boundary=.+\r\n\r\n--/);
+});
+
+Given("a plan has a final command with pipe set to true", function () {
+  setPlan(this, { label: "final", run: "printf payload", pipe: true });
+});

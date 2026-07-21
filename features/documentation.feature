@@ -11,6 +11,9 @@ Feature: CLI documentation
     And it describes the invocation-tax problem, JSON plans, file and standard-input use, multipart output, and exit statuses
     And it warns that plans execute trusted shell code
     And it includes a concise agent-skill example
+    And the plan example table has four columns
+    And the plan example uses a correct pipe chain
+    And the Node version matches the package engines requirement
 
   Scenario: Documentation identifies the installable Yoink skill
     Given the published package documentation

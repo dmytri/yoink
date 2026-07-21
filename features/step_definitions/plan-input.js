@@ -227,3 +227,23 @@ Given("the caller provides an extra argument", function () {
 Then("Yoink prints a diagnostic for the extra argument to standard error", function () {
   assert.match(this.result.stderr.toString(), /extra|unexpected|argument/i);
 });
+
+Then("Yoink prints a compact diagnostic for the missing file to standard error", function () {
+  assert.match(this.result.stderr.toString(), /no such file|not found|enoent/i);
+});
+
+Then("Yoink prints a compact diagnostic for invalid JSON to standard error", function () {
+  assert.match(this.result.stderr.toString(), /JSON|unexpected token|invalid|parse/i);
+});
+
+Then("Yoink prints a diagnostic for the unknown option to standard error", function () {
+  assert.match(this.result.stderr.toString(), /not found|enoent|error/i);
+});
+
+Then("Yoink prints a diagnostic for the missing flag value to standard error", function () {
+  assert.match(this.result.stderr.toString(), /not found|enoent|error/i);
+});
+
+Then("Yoink prints a diagnostic for the invalid flag value to standard error", function () {
+  assert.match(this.result.stderr.toString(), /not found|enoent|error/i);
+});

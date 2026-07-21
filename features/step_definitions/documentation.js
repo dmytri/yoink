@@ -27,3 +27,24 @@ Then("it includes a concise agent-skill example", function () {
 Then("it explains that the command installs the Yoink skill for agent use", function () {
   assert.match(this.documentation, /installs? the Yoink skill for agent use/i);
 });
+
+Then("the plan example table has four columns", function () {
+  const table = this.documentation.match(/\|.*\|.*\|.*\|.*\|/);
+  assert.ok(table, "expected a markdown table with four columns");
+});
+
+Then("the plan example uses a correct pipe chain", function () {
+  const example = this.documentation.match(/```json[\s\S]*?```/g);
+  assert.ok(example, "expected JSON code blocks in documentation");
+  const hasPipe = example.some((b) => b.includes('"pipe": true'));
+  assert.ok(hasPipe, "expected at least one example with pipe: true");
+});
+
+Then("the Node version matches the package engines requirement", async function () {
+  const pkg = JSON.parse(await readFile("package.json", "utf8"));
+  const engine = pkg.engines?.node;
+  assert.ok(engine);
+  const major = engine.match(/(\d+)/)?.[1];
+  assert.ok(major);
+  assert.match(this.documentation, new RegExp(`Node\\.?js? ${major}`));
+});
