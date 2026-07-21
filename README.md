@@ -14,7 +14,7 @@ Yoink requires Node.js 22 or later and a POSIX shell.
 
 ## Plans
 
-A plan is JSON with an ordered `commands` array. Every command has a human-readable `label` and an exact shell command in `run`. Commands may set `cwd`, resolved from Yoink's starting directory, and `timeout` in seconds. Commands without a timeout use one second.
+A plan is JSON with an ordered `commands` array. Every command has a human-readable `label` and an exact shell command in `run`. Commands may set `cwd`, resolved from Yoink's starting directory, `timeout` in seconds, `pipe` to send stdout to the next command's stdin, and `capture` to include a piped command's stdout in the output bundle. Commands without a timeout use one second.
 
 ```json
 {
@@ -22,6 +22,11 @@ A plan is JSON with an ordered `commands` array. Every command has a human-reada
     {
       "label": "Agent instructions",
       "run": "cat -- AGENTS.md"
+    },
+    {
+      "label": "Piped paths",
+      "run": "sed 's/^/File: /'",
+      "pipe": true
     },
     {
       "label": "Relevant references",
@@ -43,11 +48,13 @@ yoink <<'JSON'
 JSON
 ```
 
+Use `--pipefail` to exit non-zero when a piped producer fails. Use `--no-pipefail` to accept a failed piped producer when the consumer succeeds.
+
 ## Output and Exit Status
 
-Yoink writes a `YOINK-BUNDLE 1` MIME-style multipart bundle to standard output. Each stdout and stderr stream is a separate part with the command label, exact command, resolved working directory, exit code, duration, and timeout state. Stream bytes are preserved without Markdown escaping or normalization.
+Yoink writes a multipart MIME-style bundle to standard output. Each result includes the command label, exact command, resolved working directory, exit code, duration, and timeout state. Stream bytes are preserved without Markdown escaping or normalization.
 
-Yoink exits non-zero when the plan is invalid, or when any command fails or times out. It still emits the complete bundle after command failures and timeouts. Diagnostics about Yoink itself go to standard error.
+Yoink exits non-zero when the plan is invalid, when any command fails or times out, or when `--pipefail` is passed and a piped producer fails. It still emits the complete bundle after command failures and timeouts. Diagnostics about Yoink itself go to standard error.
 
 ## Agent Skills
 

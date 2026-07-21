@@ -17,7 +17,8 @@ npx @dk/yoink - <<'JSON'
     {
       "label": "Source paths",
       "run": "rg --files src",
-      "pipe": true
+      "pipe": true,
+      "capture": true
     },
     {
       "label": "Piped paths",
@@ -27,6 +28,8 @@ npx @dk/yoink - <<'JSON'
 }
 JSON
 ```
+
+When a piped command's stdout streams through to the next command, set `"capture": true` to include its output in the context bundle as well.
 
 When `retrieval-plan.json` is supplied, run this as the first retrieval action:
 

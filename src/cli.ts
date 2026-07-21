@@ -48,7 +48,7 @@ async function main() {
 			? planArgument
 			: option;
 	if (argument === undefined) {
-		process.stdout.write("usage: yoink <plan>\n");
+		process.stdout.write("usage: yoink [--pipefail|--no-pipefail] <plan>\n");
 		return;
 	}
 	let input: string;
