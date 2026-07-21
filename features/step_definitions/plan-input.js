@@ -184,7 +184,7 @@ Then("Yoink exits successfully", function () {
 
 Then("Yoink exits with a non-zero status", function () {
   assert.notEqual(this.result.status, 0);
-  if (this.pipefail) assert.match(this.result.stdout.toString(), /label: destination/);
+  if (this.pipefail) assert.ok(this.result.stdout.toString().includes('"label":"destination"'));
 });
 
 Then("Yoink exits with a non-zero status before executing a retrieval command", function () {

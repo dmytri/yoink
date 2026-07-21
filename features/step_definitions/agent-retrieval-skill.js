@@ -187,7 +187,7 @@ Then("the bundle contains the result of each requested command", function () {
 
 Then("the bundle contains every retrieval-plan result", function () {
   for (const label of retrievalPlanLabels(this))
-    assert.match(this.output, new RegExp(`label: ${label}`));
+    assert.match(this.output, new RegExp(`"label":"${label}"`));
 });
 
 Then("it does not create a plan or context file", async function () {
@@ -244,5 +244,5 @@ Then("{string} contains the result of each requested command", async function (f
 Then("{string} contains every retrieval-plan result", async function (file) {
   const bundle = await readFile(join(this.directory, file), "utf8");
   for (const label of retrievalPlanLabels(this))
-    assert.match(bundle, new RegExp(`label: ${label}`));
+    assert.match(bundle, new RegExp(`"label":"${label}"`));
 });

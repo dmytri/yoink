@@ -13,14 +13,41 @@ function bundle(world) {
   return world.bundle ?? world.result.stdout;
 }
 
+function metadata(world) {
+  const output = bundle(world).toString();
+  const b = boundary(world);
+  const results = [];
+  let pos = 0;
+  while (true) {
+    const start = output.indexOf(`name="metadata"\r\n\r\n`, pos);
+    if (start === -1) break;
+    const jsonStart = start + `name="metadata"\r\n\r\n`.length;
+    const jsonEnd = output.indexOf(`\r\n--${b}`, jsonStart);
+    results.push(JSON.parse(output.slice(jsonStart, jsonEnd === -1 ? undefined : jsonEnd)));
+    pos = jsonEnd === -1 ? output.length : jsonEnd;
+  }
+  return results;
+}
+
+function boundary(world) {
+  const m = bundle(world).toString().match(/^Content-Type: multipart\/mixed; boundary=(.+)$/m);
+  return m?.[1];
+}
+
 function stdoutBodies(world) {
-  const output = bundle(world);
-  const boundary = output.toString().match(/^Content-Type: multipart\/mixed; boundary=(.+)$/m)?.[1];
-  return output
-    .toString()
-    .split(`--${boundary}\nContent-Type: application/octet-stream\nContent-Disposition: form-data; name="stdout"\n\n`)
-    .slice(1)
-    .map((part) => part.slice(0, part.indexOf(`\n--${boundary}`)));
+  const output = bundle(world).toString();
+  const b = boundary(world);
+  const results = [];
+  let pos = 0;
+  while (true) {
+    const start = output.indexOf(`name="stdout"\r\n\r\n`, pos);
+    if (start === -1) break;
+    const bodyStart = start + `name="stdout"\r\n\r\n`.length;
+    const bodyEnd = output.indexOf(`\r\n--${b}`, bodyStart);
+    results.push(output.slice(bodyStart, bodyEnd === -1 ? undefined : bodyEnd));
+    pos = bodyEnd === -1 ? output.length : bodyEnd;
+  }
+  return results;
 }
 
 async function run(world, outputFile) {
@@ -90,29 +117,33 @@ When("the caller redirects Yoink standard output to {string}", async function (f
 
 Then("each emitted result names its label and exact command", function () {
   const command = JSON.parse(this.plan).commands[0];
-  assert.match(bundle(this).toString(), new RegExp(`label: ${command.label}`));
-  assert.match(bundle(this).toString(), new RegExp(`command: ${command.run}`));
+  const meta = metadata(this)[0];
+  assert.equal(meta.label, command.label);
+  assert.equal(meta.command, command.run);
 });
 
 Then("each emitted result names its working directory, exit code, duration, and timeout status", function () {
-  assert.match(bundle(this).toString(), /working directory: /);
-  assert.match(bundle(this).toString(), /exit code: 0/);
-  assert.match(bundle(this).toString(), /duration: /);
-  assert.match(bundle(this).toString(), /timeout: no/);
+  const meta = metadata(this)[0];
+  assert.ok(meta.cwd);
+  assert.equal(meta.exitCode, 0);
+  assert.ok(typeof meta.durationMs === "number");
+  assert.equal(meta.timedOut, false);
 });
 
 Then("the bundle declares one random boundary", function () {
-  const match = bundle(this).toString().match(/^Content-Type: multipart\/mixed; boundary=(.+)$/m);
-  assert.ok(match);
-  this.boundary = match[1];
+  assert.ok(boundary(this));
 });
 
 Then("every multipart delimiter uses the declared boundary", function () {
-  assert.ok([...bundle(this).toString().matchAll(/^--(.+?)(?:--)?$/gm)].every((match) => match[1] === this.boundary));
+  const lines = bundle(this).toString().split(/\r\n/);
+  for (const line of lines) {
+    const m = line.match(/^--(.+?)(?:--)?$/);
+    if (m) assert.equal(m[1], boundary(this));
+  }
 });
 
 Then("the closing delimiter ends with two hyphens", function () {
-  assert.match(bundle(this).toString(), new RegExp(`--${this.boundary}--\\n?$`));
+  assert.match(bundle(this).toString(), new RegExp(`--${boundary(this)}--\\r\\n?$`));
 });
 
 Then("each multipart stream body equals its emitted bytes", function () {
@@ -122,13 +153,13 @@ Then("each multipart stream body equals its emitted bytes", function () {
 
 Then("the declared boundary does not occur in result metadata or captured output other than preserved stream bodies", function () {
 	const output = bundle(this);
-	const boundary = output.toString().match(/^Content-Type: multipart\/mixed; boundary=(.+)$/m)?.[1];
-	assert.ok(boundary);
+	const b = boundary(this);
+	assert.ok(b);
 	const metadata = output.subarray(
-		output.indexOf(Buffer.from('name="metadata"\n\n')),
-		output.indexOf(Buffer.from(`\n--${boundary}\nContent-Type: application/octet-stream`)),
+		output.indexOf(Buffer.from('name="metadata"\r\n\r\n')),
+		output.indexOf(Buffer.from(`\r\n--${b}\r\nContent-Type: application/octet-stream`)),
 	);
-	assert.doesNotMatch(metadata.toString(), new RegExp(boundary));
+	assert.doesNotMatch(metadata.toString(), new RegExp(b));
 });
 
 Then("the bundle preserves the captured command stream bytes", function () {
