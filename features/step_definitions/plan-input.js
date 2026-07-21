@@ -100,6 +100,19 @@ Given("a plan file contains malformed JSON", async function () {
   await writeFile(join(this.directory, "plan.json"), "{");
 });
 
+Given("a plan command has a cwd that points to a file", async function () {
+  this.directory = await mkdtemp(join(tmpdir(), "yoink-cwd-file-"));
+  this.argument = "plan.json";
+  const filePath = join(this.directory, "a-file");
+  await writeFile(filePath, "file content");
+  await writeFile(
+    join(this.directory, "plan.json"),
+    JSON.stringify({
+      commands: [{ label: "retrieval", run: "printf retrieved", cwd: filePath }],
+    }),
+  );
+});
+
 Given(/a plan whose (.+) is invalid/, async function (invalidValue) {
   this.directory = await mkdtemp(join(tmpdir(), "yoink-invalid-"));
   this.argument = "plan.json";

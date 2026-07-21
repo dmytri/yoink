@@ -39,6 +39,7 @@ function invalid(path: string) {
  * @planks("the caller redirects Yoink standard output to {string}")
  * @planks("Yoink exits with a non-zero status before executing a retrieval command")
  * @planks("a plan whose (.+) is invalid")
+ * @planks("a plan command has a cwd that points to a file")
  */
 async function main() {
 	const [option, planArgument] = process.argv.slice(2);

@@ -77,6 +77,12 @@ Feature: Retrieval plan input
     Then Yoink exits with a non-zero status
     And Yoink writes a validation diagnostic for "$.commands[0].capture" to standard error
 
+  Scenario: File path as cwd is rejected
+    Given a plan command has a cwd that points to a file
+    When the caller runs Yoink with the plan
+    Then Yoink exits with a non-zero status
+    And Yoink writes a validation diagnostic for "$.commands[0].cwd" to standard error
+
   Scenario: Non-string cwd is rejected
     Given a plan whose non-string cwd is invalid
     When the caller runs Yoink with the plan
