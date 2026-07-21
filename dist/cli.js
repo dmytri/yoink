@@ -14,8 +14,8 @@ function invalid(path) {
  * @planks("the command prints its working directory")
  * @planks("Yoink receives a termination signal")
  * @planks("the caller redirects Yoink standard output to {string}")
- * @planks("the next command sets {string} to {string}")
  * @planks("Yoink exits with a non-zero status before executing a retrieval command")
+ * @planks("a plan whose (.+) is invalid")
  */
 async function main() {
     const [option, planArgument] = process.argv.slice(2);
@@ -24,7 +24,23 @@ async function main() {
         ? planArgument
         : option;
     if (argument === undefined) {
-        process.stdout.write("usage: yoink [--pipefail|--no-pipefail] <plan>\n");
+        process.stdout.write([
+            "usage: yoink [--pipefail|--no-pipefail] <plan>",
+            "",
+            'A plan is a JSON file or stdin stream with a "commands" array.',
+            'Each command needs "label" and "run". Optional fields:',
+            "  cwd       working directory (relative to Yoink's CWD)",
+            "  timeout   seconds before the command is killed (default: 1)",
+            "  pipe      send stdout to the next command's stdin",
+            "  capture   include a piped command's stdout in the output bundle",
+            "",
+            "Examples:",
+            "  yoink plan.json",
+            "  cat plan.json | yoink -",
+            "  yoink --pipefail plan.json",
+            "  yoink --no-pipefail plan.json",
+            "",
+        ].join("\n"));
         return;
     }
     let input;

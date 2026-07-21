@@ -64,3 +64,21 @@ Feature: Retrieval plan input
       | command stdin                   | $.commands[0].stdin   |
       | non-positive command timeout    | $.commands[0].timeout |
       | non-directory command cwd       | $.commands[0].cwd     |
+
+  Scenario: Non-boolean pipe is rejected
+    Given a plan whose non-boolean pipe is invalid
+    When the caller runs Yoink with the plan
+    Then Yoink exits with a non-zero status
+    And Yoink writes a validation diagnostic for "$.commands[0].pipe" to standard error
+
+  Scenario: Non-boolean capture is rejected
+    Given a plan whose non-boolean capture is invalid
+    When the caller runs Yoink with the plan
+    Then Yoink exits with a non-zero status
+    And Yoink writes a validation diagnostic for "$.commands[0].capture" to standard error
+
+  Scenario: Non-string cwd is rejected
+    Given a plan whose non-string cwd is invalid
+    When the caller runs Yoink with the plan
+    Then Yoink exits with a non-zero status
+    And Yoink writes a validation diagnostic for "$.commands[0].cwd" to standard error

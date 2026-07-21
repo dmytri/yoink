@@ -113,6 +113,9 @@ Given(/a plan whose (.+) is invalid/, async function (invalidValue) {
     "command stdin": { commands: [{ label: "retrieval", run: "printf executed", stdin: "args" }] },
     "non-positive command timeout": { commands: [{ label: "retrieval", run: "printf executed", timeout: 0 }] },
     "non-directory command cwd": { commands: [{ label: "retrieval", run: "printf executed", cwd: "missing" }] },
+    "non-boolean pipe": { commands: [{ label: "retrieval", run: "printf executed", pipe: "yes" }] },
+    "non-boolean capture": { commands: [{ label: "retrieval", run: "printf executed", capture: "yes" }] },
+    "non-string cwd": { commands: [{ label: "retrieval", run: "printf executed", cwd: 123 }] },
   };
   await writeFile(join(this.directory, "plan.json"), JSON.stringify(values[invalidValue]));
 });

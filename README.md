@@ -14,7 +14,16 @@ Yoink requires Node.js 22 or later and a POSIX shell.
 
 ## Plans
 
-A plan is JSON with an ordered `commands` array. Every command has a human-readable `label` and an exact shell command in `run`. Commands may set `cwd`, resolved from Yoink's starting directory, `timeout` in seconds, `pipe` to send stdout to the next command's stdin, and `capture` to include a piped command's stdout in the output bundle. Commands without a timeout use one second.
+A plan is a JSON object with an ordered `commands` array. Each command is an object with these fields:
+
+| Field | Required | Type | Description |
+|---|---|---|---|
+| `label` | yes | string | Human-readable name for the result |
+| `run` | yes | string | Shell command to execute |
+| `cwd` | no | string | Working directory, relative to Yoink's starting directory |
+| `timeout` | no | number | Kill the command after this many seconds (default: 1) |
+| `pipe` | no | boolean | Pipe this command's stdout to the next command's stdin |
+| `capture` | no | boolean | Include a piped command's stdout in the output bundle (only meaningful with `pipe`)
 
 ```json
 {
@@ -50,11 +59,46 @@ JSON
 
 Use `--pipefail` to exit non-zero when a piped producer fails. Use `--no-pipefail` to accept a failed piped producer when the consumer succeeds.
 
-## Output and Exit Status
+## Piping
 
-Yoink writes a multipart MIME-style bundle to standard output. Each result includes the command label, exact command, resolved working directory, exit code, duration, and timeout state. Stream bytes are preserved without Markdown escaping or normalization.
+Set `"pipe": true` on a command to connect its standard output to the next command's standard input. This works chained: command A pipes to B, B pipes to C.
 
-Yoink exits non-zero when the plan is invalid, when any command fails or times out, or when `--pipefail` is passed and a piped producer fails. It still emits the complete bundle after command failures and timeouts. Diagnostics about Yoink itself go to standard error.
+By default, a piped command's stdout is **omitted** from the output bundle — it streams to the next command instead. Set `"capture": true` on the piped command to include its stdout in the bundle too.
+
+```json
+{
+  "commands": [
+    {
+      "label": "List source",
+      "run": "rg --files src",
+      "pipe": true,
+      "capture": true
+    },
+    {
+      "label": "Transform",
+      "run": "sed 's/^/  /'"
+    }
+  ]
+}
+```
+
+Without `capture: true`, the first command's stdout still feeds the second command's stdin, but the bundle only contains the second command's stdout.
+
+## Exit status
+
+| Condition | Exit code |
+|---|---|
+| All commands succeed | 0 |
+| Any command fails or times out | 1 |
+| Plan is invalid | 1 |
+| `--pipefail` + any piped producer fails | 1 |
+| `--no-pipefail` + consumer succeeds | 0 (even if producer fails) |
+
+Yoink always emits the complete bundle, even after a command failure or timeout. Diagnostics go to stderr.
+
+## Output
+
+Yoink writes a multipart MIME-style bundle to standard output. Each command result appears as three parts: metadata (label, command, working directory, exit code, duration, timeout), stdout bytes, and stderr bytes. Stream bytes are preserved verbatim — no Markdown escaping, normalization, or re-encoding.
 
 ## Agent Skills
 
