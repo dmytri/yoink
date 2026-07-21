@@ -51,4 +51,6 @@
 - dependency: typescript
 
 ## Outbound
-- outbound: none
+- outbound: npm
+- ship: npm publish
+- verify: npm run verify
