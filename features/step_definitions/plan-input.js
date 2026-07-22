@@ -201,7 +201,7 @@ Then("Yoink does not execute a retrieval command", function () {
 });
 
 Given("the caller provides {string}", function (flag) {
-  this.argument = flag;
+  this.arguments = flag.split(" ");
   this.directory = process.cwd();
 });
 
@@ -237,13 +237,13 @@ Then("Yoink prints a compact diagnostic for invalid JSON to standard error", fun
 });
 
 Then("Yoink prints a diagnostic for the unknown option to standard error", function () {
-  assert.match(this.result.stderr.toString(), /not found|enoent|error/i);
+  assert.match(this.result.stderr.toString(), /unknown option|unrecognized|invalid option/i);
 });
 
 Then("Yoink prints a diagnostic for the missing flag value to standard error", function () {
-  assert.match(this.result.stderr.toString(), /not found|enoent|error/i);
+  assert.match(this.result.stderr.toString(), /missing.*value|requires a value|--max-bytes.*need|flag.*value/i);
 });
 
 Then("Yoink prints a diagnostic for the invalid flag value to standard error", function () {
-  assert.match(this.result.stderr.toString(), /not found|enoent|error/i);
+  assert.match(this.result.stderr.toString(), /invalid.*value|--max-bytes.*invalid|must be|positive/i);
 });

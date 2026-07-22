@@ -86,6 +86,7 @@ async function main() {
 
 	let pipefail = true;
 	let maxBytes: number | undefined;
+	let maxBytesSet = false;
 	const filtered: string[] = [];
 
 	for (let i = 0; i < args.length; i++) {
@@ -94,8 +95,32 @@ async function main() {
 			pipefail = true;
 		} else if (arg === "--no-pipefail") {
 			pipefail = false;
-		} else if (arg === "--max-bytes" && i + 1 < args.length) {
-			maxBytes = Number.parseInt(args[++i], 10);
+		} else if (arg === "--max-bytes") {
+			if (maxBytesSet) {
+				process.stderr.write(
+					"--max-bytes: invalid value (specified more than once)\n",
+				);
+				process.exitCode = 1;
+				return;
+			}
+			i++;
+			if (i >= args.length) {
+				process.stderr.write("--max-bytes requires a value\n");
+				process.exitCode = 1;
+				return;
+			}
+			const val = args[i];
+			if (!/^[1-9][0-9]*$/.test(val)) {
+				process.stderr.write(`--max-bytes: invalid value '${val}'\n`);
+				process.exitCode = 1;
+				return;
+			}
+			maxBytes = Number.parseInt(val, 10);
+			maxBytesSet = true;
+		} else if (arg.startsWith("-") && arg !== "-") {
+			process.stderr.write(`unknown option: ${arg}\n`);
+			process.exitCode = 1;
+			return;
 		} else {
 			filtered.push(arg);
 		}
@@ -174,26 +199,28 @@ async function main() {
 	}
 
 	const childProcessGroups = new Set<number>();
-	const sigterm = () => {
-		for (const pgid of childProcessGroups) {
+	let cleaningUp = false;
+	const handleSignal = async (signal: NodeJS.Signals) => {
+		if (cleaningUp) return;
+		cleaningUp = true;
+		const groups = [...childProcessGroups];
+		for (const pgid of groups) {
 			try {
-				process.kill(pgid, "SIGTERM");
+				process.kill(pgid, signal);
 			} catch {}
 		}
-		process.removeListener("SIGTERM", sigterm);
-		process.kill(process.pid, "SIGTERM");
-	};
-	process.on("SIGTERM", sigterm);
-	const sigint = () => {
-		for (const pgid of childProcessGroups) {
+		await new Promise((resolve) => setTimeout(resolve, 100));
+		for (const pgid of groups) {
 			try {
-				process.kill(pgid, "SIGINT");
+				process.kill(pgid, "SIGKILL");
 			} catch {}
 		}
-		process.removeListener("SIGINT", sigint);
-		process.kill(process.pid, "SIGINT");
+		process.removeListener("SIGTERM", handleSignal);
+		process.removeListener("SIGINT", handleSignal);
+		process.kill(process.pid, signal);
 	};
-	process.on("SIGINT", sigint);
+	process.on("SIGTERM", handleSignal);
+	process.on("SIGINT", handleSignal);
 
 	const results: Result[] = [];
 	/** @planks("the caller runs Yoink with the plan") */

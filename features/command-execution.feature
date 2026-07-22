@@ -67,3 +67,9 @@ Feature: Retrieval command execution
     When Yoink receives SIGINT
     Then Yoink terminates the active child process group
     And Yoink exits with the signal-derived status
+
+  Scenario: A termination signal kills processes that ignore it
+    Given a plan command ignores SIGTERM without a timeout value
+    When Yoink receives a termination signal
+    Then no child process remains running after Yoink exits
+    And Yoink exits with a non-zero status

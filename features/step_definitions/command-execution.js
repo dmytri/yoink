@@ -76,13 +76,23 @@ When("the command prints its working directory", async function () {
 When("Yoink receives a termination signal", async function () {
   this.directory ??= await mkdtemp(join(tmpdir(), "yoink-signal-"));
   await writeFile(join(this.directory, "plan.json"), this.plan);
-  this.child = spawn(process.execPath, [join(process.cwd(), "dist/cli.js"), "plan.json"], { cwd: this.directory });
-  const closed = new Promise((resolve) => this.child.on("close", (_code, signal) => resolve(signal)));
+  this.child = spawn(process.execPath, [join(process.cwd(), "dist/cli.js"), "plan.json"], { cwd: this.directory, stdio: ["ignore", "pipe", "pipe"] });
+  const collect = (stream) => new Promise((resolve) => {
+    const chunks = [];
+    stream.on("data", (chunk) => chunks.push(chunk));
+    stream.on("end", () => resolve(Buffer.concat(chunks)));
+  });
+  const stdoutPromise = collect(this.child.stdout);
+  const stderrPromise = collect(this.child.stderr);
+  const closed = new Promise((resolve) => this.child.on("close", (code, signal) => resolve({ code, signal })));
   await new Promise((resolve) => setTimeout(resolve, 100));
   this.signalledAt = Date.now();
   this.child.kill("SIGTERM");
-  this.signal = await closed;
+  const status = await closed;
+  this.signal = status.signal;
   this.signalElapsed = Date.now() - this.signalledAt;
+  const [stdout, stderr] = await Promise.all([stdoutPromise, stderrPromise]);
+  this.result = { stdout, stderr, ...status };
 });
 
 Then("the file contains {string} before {string}", async function (first, second) {
@@ -124,7 +134,8 @@ Then("Yoink exits with the signal-derived status", function () {
 });
 
 Given("a plan command ignores SIGTERM without a timeout value", function () {
-  setPlan(this, [{ label: "ignores-sigterm", run: "trap '' 15; sleep 3" }]);
+  this.pidFile = "pids.txt";
+  setPlan(this, [{ label: "ignores-sigterm", run: `printf '%s\\n' $$ >> ${this.pidFile}; trap '' 15; sleep 3` }]);
 });
 
 Given("a plan has a three-command pipeline", function () {
@@ -208,14 +219,39 @@ Then("the stdout body is exactly {int} bytes", function (expected) {
   assert.equal(m?.[1]?.length, expected);
 });
 
+Then("no child process remains running after Yoink exits", async function () {
+  const contents = await readFile(join(this.directory, this.pidFile), "utf8");
+  const pids = contents.trim().split("\n").filter(Boolean);
+  for (const pid of pids) {
+    const n = parseInt(pid, 10);
+    if (Number.isNaN(n) || n > 999999) continue;
+    try {
+      process.kill(n, 0);
+      assert.fail(`PID ${pid} is still running`);
+    } catch (e) {
+      if (e.code !== "ESRCH") throw e;
+    }
+  }
+});
+
 When("Yoink receives SIGINT", async function () {
   this.directory ??= await mkdtemp(join(tmpdir(), "yoink-signal-"));
   await writeFile(join(this.directory, "plan.json"), this.plan);
-  this.child = spawn(process.execPath, [join(process.cwd(), "dist/cli.js"), "plan.json"], { cwd: this.directory });
-  const closed = new Promise((resolve) => this.child.on("close", (_code, signal) => resolve(signal)));
+  this.child = spawn(process.execPath, [join(process.cwd(), "dist/cli.js"), "plan.json"], { cwd: this.directory, stdio: ["ignore", "pipe", "pipe"] });
+  const collect = (stream) => new Promise((resolve) => {
+    const chunks = [];
+    stream.on("data", (chunk) => chunks.push(chunk));
+    stream.on("end", () => resolve(Buffer.concat(chunks)));
+  });
+  const stdoutPromise = collect(this.child.stdout);
+  const stderrPromise = collect(this.child.stderr);
+  const closed = new Promise((resolve) => this.child.on("close", (code, signal) => resolve({ code, signal })));
   await new Promise((resolve) => setTimeout(resolve, 100));
   this.signalledAt = Date.now();
   this.child.kill("SIGINT");
-  this.signal = await closed;
+  const status = await closed;
+  this.signal = status.signal;
   this.signalElapsed = Date.now() - this.signalledAt;
+  const [stdout, stderr] = await Promise.all([stdoutPromise, stderrPromise]);
+  this.result = { stdout, stderr, ...status };
 });
