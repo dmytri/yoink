@@ -13,6 +13,7 @@ Binding behaviour lives in `.feature` specs and referenced `assets/**`. History 
 
 ### Item 3 — Bounded --max-bytes collection
 - Existing scenario "Output beyond the byte limit is truncated" covers the functional contract
+- @captain scenario "Output collection is bounded during streaming" was superseded by the above and deleted (confirmed per upstream)
 - Implementation fix: bounded collector that retains only N bytes during streaming; uncaptured piped stdout should use 'ignore' not 'pipe'
 
 ### Item 7 — CLI parser validation

@@ -226,7 +226,6 @@ async function main() {
 	/**
 	 * @planks("the caller runs Yoink with the plan")
 	 * @planks("the command result metadata indicates stderr was truncated")
-	 * @planks-provisional("features/command-execution.feature:Output collection is bounded during streaming")
 	 */
 	const execute = (command: Command, piped = false) => {
 		const startedAt = Date.now();

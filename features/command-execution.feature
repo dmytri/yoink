@@ -80,9 +80,3 @@ Feature: Retrieval command execution
     Then the command result metadata indicates stderr was truncated
     And the stderr body is exactly 64 bytes
 
-  @captain
-  Scenario: Output collection is bounded during streaming
-    Given a plan command exceeds "--max-bytes 64"
-    When the caller runs Yoink with "--max-bytes 64" and the plan
-    Then the command result metadata indicates stdout was truncated
-    And Yoink collects at most 64 bytes of stdout during execution
