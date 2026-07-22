@@ -186,7 +186,11 @@ async function main() {
     process.on("SIGTERM", handleSignal);
     process.on("SIGINT", handleSignal);
     const results = [];
-    /** @planks("the caller runs Yoink with the plan") */
+    /**
+     * @planks("the caller runs Yoink with the plan")
+     * @planks("the command result metadata indicates stderr was truncated")
+     * @planks-provisional("features/command-execution.feature:Output collection is bounded during streaming")
+     */
     const execute = (command, piped = false) => {
         const startedAt = Date.now();
         const child = spawn(command.run, [], {
@@ -199,7 +203,20 @@ async function main() {
             childProcessGroups.add(-child.pid);
         const stdout = [];
         const stderr = [];
-        child.stdout?.on("data", (chunk) => stdout.push(chunk));
+        const collectingStdout = command.capture !== false && !(command.pipe && command.capture !== true);
+        let stdoutCollected = 0;
+        child.stdout?.on("data", (chunk) => {
+            if (collectingStdout) {
+                if (maxBytes !== undefined && stdoutCollected >= maxBytes) {
+                    return;
+                }
+                stdout.push(chunk);
+                stdoutCollected += chunk.length;
+            }
+            else {
+                stdout.push(chunk);
+            }
+        });
         child.stderr?.on("data", (chunk) => stderr.push(chunk));
         let timedOut = false;
         const timeout = setTimeout(() => {

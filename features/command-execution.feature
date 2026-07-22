@@ -73,3 +73,16 @@ Feature: Retrieval command execution
     When Yoink receives a termination signal
     Then no child process remains running after Yoink exits
     And Yoink exits with a non-zero status
+
+  Scenario: Standard error is also truncated by --max-bytes
+    Given a plan command writes large output to standard error
+    When the caller runs Yoink with "--max-bytes 64" and the plan
+    Then the command result metadata indicates stderr was truncated
+    And the stderr body is exactly 64 bytes
+
+  @captain
+  Scenario: Output collection is bounded during streaming
+    Given a plan command exceeds "--max-bytes 64"
+    When the caller runs Yoink with "--max-bytes 64" and the plan
+    Then the command result metadata indicates stdout was truncated
+    And Yoink collects at most 64 bytes of stdout during execution

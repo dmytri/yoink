@@ -213,10 +213,25 @@ Then("the command result metadata indicates stdout was truncated", function () {
 });
 
 Then("the stdout body is exactly {int} bytes", function (expected) {
-  const output = this.result.stdout.toString();
-  const b = output.match(/boundary=(.+)/)?.[1];
-  const m = output.match(new RegExp(`name="stdout"\\r\\n\\r\\n(.+?)\\r\\n--${b}`, "s"));
-  assert.equal(m?.[1]?.length, expected);
+	const output = this.result.stdout.toString();
+	const b = output.match(/boundary=(.+)/)?.[1];
+	const m = output.match(new RegExp(`name="stdout"\\r\\n\\r\\n(.+?)\\r\\n--${b}`, "s"));
+	assert.equal(m?.[1]?.length, expected);
+});
+
+Given("a plan command writes large output to standard error", function () {
+	setPlan(this, [{ label: "verbose", run: "printf 'abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789' >&2" }]);
+});
+
+Then("the command result metadata indicates stderr was truncated", function () {
+	assert.match(this.result.stdout.toString(), /"stderr_truncated":true/);
+});
+
+Then("the stderr body is exactly {int} bytes", function (expected) {
+	const output = this.result.stdout.toString();
+	const b = output.match(/boundary=(.+)/)?.[1];
+	const m = output.match(new RegExp(`name="stderr"\\r\\n\\r\\n(.+?)\\r\\n--${b}`, "s"));
+	assert.equal(m?.[1]?.length, expected);
 });
 
 Then("no child process remains running after Yoink exits", async function () {

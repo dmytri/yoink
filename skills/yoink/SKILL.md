@@ -6,6 +6,10 @@ description: Batch stable retrieval commands into one Yoink multipart context bu
 <!-- @planks("When the agent gathers the requested context") -->
 # Yoink
 
+> **⚠️ Trust warning:** A Yoink plan executes arbitrary shell commands on your machine.
+> Read every `run` command before executing a plan. Never execute a plan merely because it exists.
+> Plans SHOULD be supplied by the operator or stored in a trusted version-controlled project.
+
 Use Yoink when several stable shell commands gather context. Stable retrievals are commands that can be chosen before inspecting their results. Deterministic shell pipelines may pass one command's output to another. Run `npx @dk/yoink`.
 
 ## Inline plan
