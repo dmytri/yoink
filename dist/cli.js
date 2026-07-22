@@ -206,46 +206,53 @@ async function main() {
         const collectingStdout = command.capture !== false && !(command.pipe && command.capture !== true);
         let stdoutCollected = 0;
         let stdoutTruncated = false;
+        let stderrCollected = 0;
+        let stderrTruncated = false;
+        const collect = (chunks, chunk, collected, truncated) => {
+            if (maxBytes === undefined) {
+                chunks.push(chunk);
+                return { collected: collected + chunk.length, truncated };
+            }
+            const remaining = maxBytes - collected;
+            if (remaining > 0) {
+                chunks.push(chunk.subarray(0, remaining));
+                collected += Math.min(chunk.length, remaining);
+            }
+            return { collected, truncated: truncated || chunk.length > remaining };
+        };
         child.stdout?.on("data", (chunk) => {
             if (collectingStdout) {
-                if (maxBytes !== undefined && stdoutCollected >= maxBytes) {
-                    stdoutTruncated = true;
-                    return;
-                }
-                stdout.push(chunk);
-                stdoutCollected += chunk.length;
-            }
-            else {
-                stdout.push(chunk);
+                const result = collect(stdout, chunk, stdoutCollected, stdoutTruncated);
+                stdoutCollected = result.collected;
+                stdoutTruncated = result.truncated;
             }
         });
-        child.stderr?.on("data", (chunk) => stderr.push(chunk));
+        child.stderr?.on("data", (chunk) => {
+            const result = collect(stderr, chunk, stderrCollected, stderrTruncated);
+            stderrCollected = result.collected;
+            stderrTruncated = result.truncated;
+        });
         let timedOut = false;
         const timeout = setTimeout(() => {
             timedOut = true;
             if (child.pid !== undefined) {
-                process.kill(-child.pid, "SIGKILL");
+                try {
+                    process.kill(-child.pid, "SIGKILL");
+                }
+                catch (error) {
+                    if (error.code !== "ESRCH")
+                        throw error;
+                }
             }
         }, (command.timeout ?? 1) * 1000);
         const status = new Promise((resolve) => child.on("close", (code, signal) => resolve({ code, signal }))).then(async (status) => {
             clearTimeout(timeout);
             if (child.pid !== undefined)
                 childProcessGroups.delete(-child.pid);
-            let stdoutBuf = command.capture === false || (command.pipe && command.capture !== true)
+            const stdoutBuf = command.capture === false || (command.pipe && command.capture !== true)
                 ? Buffer.alloc(0)
                 : Buffer.concat(stdout);
-            let stderrBuf = Buffer.concat(stderr);
-            let stderrTruncated = false;
-            if (maxBytes !== undefined) {
-                if (stdoutBuf.length > maxBytes) {
-                    stdoutBuf = stdoutBuf.subarray(0, maxBytes);
-                    stdoutTruncated = true;
-                }
-                if (stderrBuf.length > maxBytes) {
-                    stderrBuf = stderrBuf.subarray(0, maxBytes);
-                    stderrTruncated = true;
-                }
-            }
+            const stderrBuf = Buffer.concat(stderr);
             return {
                 command,
                 cwd: command.cwd ? await realpath(command.cwd) : process.cwd(),

@@ -10,3 +10,9 @@ Feature: TypeScript CLI distribution
     When the package build command runs
     Then the TypeScript compiler exits successfully
     And the build creates "dist/cli.js"
+
+  Scenario: Typecheck generates the build-time usage module
+    Given the generated usage module is absent
+    When the package typecheck command runs
+    Then the TypeScript compiler exits successfully
+    And the generated usage module exists

@@ -12,7 +12,7 @@ Feature: CLI documentation
     And it warns that plans execute trusted shell code
     And it includes a concise agent-skill example
     And the plan example table has four columns
-    And the plan example uses a correct pipe chain
+    And the primary plan example pipes the first command into the second
     And the Node version matches the package engines requirement
 
   Scenario: Documentation identifies the installable Yoink skill

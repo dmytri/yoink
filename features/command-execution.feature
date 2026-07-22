@@ -20,6 +20,7 @@ Feature: Retrieval command execution
     Given a plan command runs longer than one second without a timeout value
     When the caller runs Yoink with the plan
     Then the command result is marked timed out
+    And Yoink emits the complete bundle
     And Yoink exits with a non-zero status
 
   Scenario: A command overrides the default timeout
@@ -88,15 +89,14 @@ Feature: Retrieval command execution
   Scenario: Suppressed standard output is not held in memory
     Given a plan command writes 256 MiB to standard output with capture disabled
     When the caller runs Yoink with a constrained heap and the plan
-    Then Yoink emits the complete bundle
+    Then Yoink emits the complete bundle while resident memory stays below 128 MiB
 
   Scenario: A runaway standard error stream does not exhaust memory
     Given a plan command writes 256 MiB to standard error
     When the caller runs Yoink with "--max-bytes 64" and a constrained heap and the plan
-    Then Yoink emits the complete bundle
+    Then Yoink emits the complete bundle while resident memory stays below 128 MiB
 
   Scenario: A termination signal prevents queued commands from starting
     Given a plan has a long-running command followed by a command that writes a marker file
     When Yoink receives a termination signal
     Then the marker file does not exist
-

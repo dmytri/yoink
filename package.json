@@ -10,7 +10,7 @@
   "scripts": {
     "pretest": "npm run build",
     "test": "cucumber-js --tags '@logic and not @captain and not @shipwright'",
-    "typecheck": "tsc src/cli.ts --noEmit --target ES2022 --module NodeNext --moduleResolution NodeNext --types node",
+    "typecheck": "npm run codegen && tsc src/cli.ts --noEmit --target ES2022 --module NodeNext --moduleResolution NodeNext --types node",
     "lint": "gplint && biome check src",
     "verify": "npm run typecheck && npm run lint && npm test",
     "build": "npm run codegen && tsc src/cli.ts --target ES2022 --module NodeNext --moduleResolution NodeNext --types node --outDir dist --rootDir src",

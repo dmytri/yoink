@@ -30,12 +30,12 @@ A plan is a JSON object with an ordered `commands` array. Each command is an obj
   "commands": [
     {
       "label": "Agent instructions",
-      "run": "cat -- AGENTS.md"
+      "run": "cat -- AGENTS.md",
+      "pipe": true
     },
     {
       "label": "Piped paths",
-      "run": "sed 's/^/File: /'",
-      "pipe": true
+      "run": "sed 's/^/File: /'"
     },
     {
       "label": "Relevant references",
