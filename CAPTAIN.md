@@ -4,25 +4,21 @@
 
 Binding behaviour lives in `.feature` specs and referenced `assets/**`. History lives in git. These notes carry only what the next cycle needs.
 
-## Current Voyage: harbour follow-ups and usage asset
+## Voyage State
 
-Harbour review disposals executed. Live watchbill: watch1 double-signal supersede, watch2 usage-asset perturbation, watch3 plank-form conformance, watch4 eval resample.
-
-- Perturbation planted in `usage()` (src/cli.ts). Usage copy moved to `assets/usage.txt`; build inlines it via codegen into git-ignored `src/usage-text.ts`.
-- Help scenario strengthened: printed usage must equal the asset.
-- Eval harness defect: per-scenario evidence dirs not namespaced (coverage/eval clobbered). QM fixes support, takes one fresh sample of the red baseline-agent scenario.
-- Shipwright re-invocation riding: ts-morph/tsx removal, RIGGING refit (focused-eval variant, codegen-chained build/typecheck), provisional plank strike on `main`.
-- Orphaned step defs (9, step-usage zero-match evidence) routed to Boatswain custody hygiene.
-
-Deferred nits, no voyage work: no `child.on("error")` handler; `realpath(cwd)` after close can reject; `--help`/`--version` pre-scan quirks; no `--` separator; stdin concat is O(n^2).
+Closed. Harbour review disposals, usage-asset inlining, conformance checks, and eval harness fixes all committed at `b4df547`. Eval resample green; the "variance" was an escape-blind harness assertion, fixed.
 
 ## Pending Outbound
 
-- 3 commits ahead of `origin/main`; this voyage's commits ride too.
+- 4 commits ahead of `origin/main`. Awaiting user approval: push, and/or version bump + `npm publish` (verify: `npm run verify`).
 
 ## Conventions
 
 - Trunk-based development: push to `origin/main` directly. No feature branches or PRs.
+
+## Deferred Nits
+
+No voyage work: no `child.on("error")` handler; `realpath(cwd)` after close can reject; `--help`/`--version` pre-scan quirks; no `--` separator; stdin concat is O(n^2).
 
 ## Eval State
 
