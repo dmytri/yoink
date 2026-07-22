@@ -56,7 +56,13 @@ async function run(
 		),
 	]);
 	if (sampler) clearInterval(sampler);
-	world.result = { stdout, stderr, ...status, maxRss: Math.max(0, ...rss) };
+	world.result = {
+		stdout,
+		stderr,
+		...status,
+		maxRss: Math.max(0, ...rss),
+		rssSamples: rss.length,
+	};
 }
 
 Given(
@@ -477,6 +483,7 @@ Then(
 	"Yoink emits the complete bundle while resident memory stays below {int} MiB",
 	function (limit) {
 		assert.equal(this.result.status, 0);
+		assert.ok(this.result.rssSamples > 0, "RSS measurement produced no samples");
 		const output = this.result.stdout.toString();
 		const boundary = output.match(
 			/^Content-Type: multipart\/mixed; boundary=(.+)$/m,
