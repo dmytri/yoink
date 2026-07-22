@@ -56,6 +56,13 @@ Feature: Retrieval plan input
     When the caller runs Yoink with the plan
     Then the next command receives "main" before the piped command exits
 
+  Scenario: A pipeline consumer may stop reading early
+    Given a producer emits output continuously
+    And the consumer exits after reading one line
+    When the caller runs Yoink with the plan
+    Then Yoink emits the complete bundle
+    And Yoink does not crash with EPIPE
+
   Scenario: Pipefail reports a failed piped producer
     Given a root command collection has a failing piped producer and a successful consumer
     When the caller runs Yoink with "--pipefail"
@@ -90,6 +97,7 @@ Feature: Retrieval plan input
       | unknown command field           | $.commands[0].extra   |
       | command stdin                   | $.commands[0].stdin   |
       | non-positive command timeout    | $.commands[0].timeout |
+      | non-finite command timeout      | $.commands[0].timeout |
       | non-directory command cwd       | $.commands[0].cwd     |
 
   Scenario: Non-boolean pipe is rejected
@@ -140,4 +148,5 @@ Feature: Retrieval plan input
       | --max-bytes -1    |
       | --max-bytes NaN   |
       | --max-bytes 64x   |
+      | --max-bytes 999999999999999999999999999999999999999999999999999999999999 |
       | --max-bytes 64 --max-bytes 128 |

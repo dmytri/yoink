@@ -32,6 +32,7 @@ function usage() {
  * @planks("Yoink prints a compact diagnostic for the missing file to standard error")
  * @planks("Yoink prints a compact diagnostic for invalid JSON to standard error")
  * @planks("the diagnostic is a single line")
+ * @planks("Yoink emits the complete bundle")
  */
 async function main() {
     const args = process.argv.slice(2);
@@ -69,12 +70,13 @@ async function main() {
                 return;
             }
             const val = args[i];
-            if (!/^[1-9][0-9]*$/.test(val)) {
+            const parsed = Number.parseInt(val, 10);
+            if (!/^[1-9][0-9]*$/.test(val) || !Number.isSafeInteger(parsed)) {
                 process.stderr.write(`--max-bytes: invalid value '${val}'\n`);
                 process.exitCode = 1;
                 return;
             }
-            maxBytes = Number.parseInt(val, 10);
+            maxBytes = parsed;
             maxBytesSet = true;
         }
         else if (arg.startsWith("-") && arg !== "-") {
@@ -275,8 +277,13 @@ async function main() {
         while (commands[index].pipe && index + 1 < commands.length) {
             index += 1;
             const next = execute(commands[index], true);
-            if (next.child.stdin)
+            if (next.child.stdin) {
+                next.child.stdin.on("error", (error) => {
+                    if (error.code !== "EPIPE")
+                        throw error;
+                });
                 pipeline.at(-1)?.child.stdout?.pipe(next.child.stdin);
+            }
             pipeline.push(next);
         }
         const completed = await Promise.all(pipeline.map(({ status }) => status));

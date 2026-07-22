@@ -69,6 +69,17 @@ Given("a root command collection has a piped command that stays active after wri
   }];
 });
 
+Given("a producer emits output continuously", async function () {
+  this.directory = await mkdtemp(join(tmpdir(), "yoink-epipe-"));
+  this.argument = "plan.json";
+  this.commands = [{ label: "producer", run: "yes", pipe: true }];
+});
+
+Given("the consumer exits after reading one line", async function () {
+  this.commands.push({ label: "consumer", run: "head -n 1 >/dev/null" });
+  await writeFile(join(this.directory, "plan.json"), JSON.stringify({ commands: this.commands }));
+});
+
 Given("a root command collection has a failing piped producer and a successful consumer", async function () {
   this.pipefail = true;
   this.directory = await mkdtemp(join(tmpdir(), "yoink-pipefail-"));
@@ -111,6 +122,7 @@ Given(/a plan whose (.+) is invalid/, async function (invalidValue) {
     "non-array commands": { commands: {} },
     "empty command label": { commands: [{ label: "", run: "printf executed" }] },
     "empty command run": { commands: [{ label: "retrieval", run: "" }] },
+    "non-finite command timeout": { commands: [{ label: "retrieval", run: "printf executed", timeout: Infinity }] },
     "unknown top-level field": { commands: [], unexpected: true },
     "unknown command field": { commands: [{ label: "retrieval", run: "printf executed", extra: true }] },
     "command stdin": { commands: [{ label: "retrieval", run: "printf executed", stdin: "args" }] },
@@ -189,9 +201,13 @@ Then("Yoink does not execute a retrieval command", function () {
   assert.doesNotMatch(this.result.stdout.toString(), /executed/);
 });
 
-Given("the caller provides {string}", function (flag) {
+Given("the caller provides {string}", async function (flag) {
   this.arguments = flag.split(" ");
   this.directory = process.cwd();
+  if (this.arguments[0] === "--max-bytes" && this.arguments.length > 1) {
+    this.directory = await mkdtemp(join(tmpdir(), "yoink-max-bytes-"));
+    return writeFile(join(this.directory, "plan.json"), plan());
+  }
 });
 
 Then("Yoink prints the usage text from {string}", function (asset) {
@@ -241,4 +257,8 @@ Then("Yoink prints a diagnostic for the missing flag value to standard error", f
 
 Then("Yoink prints a diagnostic for the invalid flag value to standard error", function () {
   assert.match(this.result.stderr.toString(), /invalid.*value|--max-bytes.*invalid|must be|positive/i);
+});
+
+Then("Yoink does not crash with EPIPE", function () {
+  assert.doesNotMatch(this.result.stderr.toString(), /EPIPE/);
 });
