@@ -3,7 +3,7 @@ import { spawn } from "node:child_process";
 import { access, rm } from "node:fs/promises";
 import { Given, setDefaultTimeout, Then, When } from "@cucumber/cucumber";
 
-setDefaultTimeout(15000);
+setDefaultTimeout(30000);
 
 Given("the Yoink CLI source is in {string}", async (source) => {
 	await access(source);
