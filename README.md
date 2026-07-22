@@ -2,7 +2,15 @@
 
 > Yoink executes a retrieval plan and bundles the results into a model-ready multipart MIME bundle.
 
-Agents often need several predictable retrieval commands before they can act. Calling those commands one at a time costs a model invocation per command. Yoink runs an ordered retrieval plan in one process and returns one complete bundle.
+Run many context-retrieval commands in one agent tool call, then return one structured bundle.
+
+Agents often need several files, searches, and environment details before they can act. Yoink runs those stable retrievals in one call and returns one labelled bundle, reducing invocation overhead, orchestration latency, repeated context overhead, and intermediate model decisions.
+
+## Why Yoink?
+
+- One retrieval call instead of several sequential calls
+- One consistent bundle for the agent to consume
+- Ordered commands, pipelines, timeouts, and failure metadata
 
 ## Install
 

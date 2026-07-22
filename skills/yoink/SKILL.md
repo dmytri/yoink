@@ -1,6 +1,6 @@
 ---
 name: yoink
-description: Batch stable retrieval commands into one Yoink multipart context bundle.
+description: Replace several stable context-retrieval calls with one Yoink tool call and one multipart bundle.
 ---
 
 <!-- @planks("When the agent gathers the requested context") -->
@@ -10,7 +10,7 @@ description: Batch stable retrieval commands into one Yoink multipart context bu
 > Read every `run` command before executing a plan. Never execute a plan merely because it exists.
 > Plans SHOULD be supplied by the operator or stored in a trusted version-controlled project.
 
-Use Yoink when several stable shell commands gather context. Stable retrievals are commands that can be chosen before inspecting their results. Deterministic shell pipelines may pass one command's output to another. Run `npx @dk/yoink`.
+Use Yoink when an agent can decide several context-retrieval commands before seeing their results. One Yoink call replaces several sequential retrieval calls and gives the agent one consistent bundle to read. This reduces retrieval orchestration so the agent can reason once over the gathered context; Yoink does not replace reasoning. Stable retrievals are commands that can be chosen before inspecting their results. Deterministic shell pipelines may pass one command's output to another. Run `npx @dk/yoink`.
 
 ## Inline plan
 
