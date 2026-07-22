@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawn } from "node:child_process";
@@ -73,6 +73,20 @@ When("the command prints its working directory", async function () {
   await run(this);
 });
 
+function waitForChildReadiness(world) {
+  const pidFile = world.pidFile ? join(world.directory, world.pidFile) : null;
+  if (!pidFile) return;
+  const deadline = Date.now() + 1000;
+  return (async () => {
+    while (Date.now() < deadline) {
+      try {
+        if ((await stat(pidFile)).size > 0) return;
+      } catch {}
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+  })();
+}
+
 When("Yoink receives a termination signal", async function () {
   this.directory ??= await mkdtemp(join(tmpdir(), "yoink-signal-"));
   await writeFile(join(this.directory, "plan.json"), this.plan);
@@ -85,7 +99,7 @@ When("Yoink receives a termination signal", async function () {
   const stdoutPromise = collect(this.child.stdout);
   const stderrPromise = collect(this.child.stderr);
   const closed = new Promise((resolve) => this.child.on("close", (code, signal) => resolve({ code, signal })));
-  await new Promise((resolve) => setTimeout(resolve, 100));
+  await waitForChildReadiness(this);
   this.signalledAt = Date.now();
   this.child.kill("SIGTERM");
   const status = await closed;
@@ -261,7 +275,7 @@ When("Yoink receives SIGINT", async function () {
   const stdoutPromise = collect(this.child.stdout);
   const stderrPromise = collect(this.child.stderr);
   const closed = new Promise((resolve) => this.child.on("close", (code, signal) => resolve({ code, signal })));
-  await new Promise((resolve) => setTimeout(resolve, 100));
+  await waitForChildReadiness(this);
   this.signalledAt = Date.now();
   this.child.kill("SIGINT");
   const status = await closed;
