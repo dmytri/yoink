@@ -236,6 +236,12 @@ Then("Yoink prints a compact diagnostic for invalid JSON to standard error", fun
   assert.match(this.result.stderr.toString(), /JSON|unexpected token|invalid|parse/i);
 });
 
+Then("the diagnostic is a single line", function () {
+  const diagnostic = this.result.stderr.toString().trim();
+  assert.notEqual(diagnostic.length, 0);
+  assert.equal(diagnostic.split("\n").length, 1);
+});
+
 Then("Yoink prints a diagnostic for the unknown option to standard error", function () {
   assert.match(this.result.stderr.toString(), /unknown option|unrecognized|invalid option/i);
 });

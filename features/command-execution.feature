@@ -80,3 +80,23 @@ Feature: Retrieval command execution
     Then the command result metadata indicates stderr was truncated
     And the stderr body is exactly 64 bytes
 
+  Scenario: Output that continues past an exactly full limit is reported as truncated
+    Given a plan command writes exactly "--max-bytes" bytes and then writes more
+    When the caller runs Yoink with "--max-bytes 64" and the plan
+    Then the command result metadata indicates stdout was truncated
+
+  Scenario: Suppressed standard output is not held in memory
+    Given a plan command writes 256 MiB to standard output with capture disabled
+    When the caller runs Yoink with a constrained heap and the plan
+    Then Yoink emits the complete bundle
+
+  Scenario: A runaway standard error stream does not exhaust memory
+    Given a plan command writes 256 MiB to standard error
+    When the caller runs Yoink with "--max-bytes 64" and a constrained heap and the plan
+    Then Yoink emits the complete bundle
+
+  Scenario: A termination signal prevents queued commands from starting
+    Given a plan has a long-running command followed by a command that writes a marker file
+    When Yoink receives a termination signal
+    Then the marker file does not exist
+

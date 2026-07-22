@@ -4,29 +4,25 @@
 
 Binding behaviour lives in `.feature` specs and referenced `assets/**`. History lives in git. These notes carry only what the next cycle needs.
 
-## Current Voyage: Hardening Items 2, 3, 7
+## Current Voyage: Stream honesty and bounded collection
 
-### Item 2 — Signal escalation for survivors
-- Added scenario: "A termination signal kills processes that ignore it" (command-execution.feature:71)
-- Existing scenarios cover SIGINT, SIGTERM, pipeline termination, and per-command SIGKILL
-- Gap: external signal handler sends TERM/INT to child groups and exits immediately. Processes that ignore the signal survive as orphans. Need: send signal → wait grace → SIGKILL survivors → catch ESRCH → self-terminate.
+Source: user-requested Captain code review. Four findings are spec'd and on the watchbill.
 
-### Item 3 — Bounded --max-bytes collection
-- Existing scenario "Output beyond the byte limit is truncated" covers the functional contract
-- @captain scenario "Output collection is bounded during streaming" was superseded by the above and deleted (confirmed per upstream)
-- Implementation fix: bounded collector that retains only N bytes during streaming; uncaptured piped stdout should use 'ignore' not 'pipe'
+1. Compact diagnostics false pass: `readFile`/`JSON.parse` have no error boundary (verified live: unhandled rejection stack, exit 1). Strengthened both scenarios with "the diagnostic is a single line". Old step regexes matched stack traces.
+2. Bounded collection gaps: capture=false stdout is retained then discarded (the `else` push in `execute`); stderr accumulates unbounded during streaming. Two constrained-heap scenarios (256 MiB streams).
+3. Truncation flag is chunk-dependent: exact-fill then more input drops bytes without setting `stdout_truncated`. New scenario pins report-when-dropped.
+4. Signal spawn race: the main loop can launch queued commands inside the 100ms grace window; they escape the SIGKILL snapshot and orphan. Marker-file scenario pins no-start.
 
-### Item 7 — CLI parser validation
-- Existing scenarios for unknown options, missing/invalid --max-bytes, extra args
-- Implementation fix: replace Number.parseInt with strict pattern match, reject zero/negative/NaN/trailing garbage, reject duplicates, reject unknown options, wrap readFile/JSON.parse in error boundary
+Deferred nits, no voyage work: no `child.on("error")` handler; `realpath(cwd)` after close can reject; `--help`/`--version` pre-scan quirks; no `--` separator; stdin concat is O(n^2).
 
-### Test harness concern (from external review)
-- Several plan-input scenarios for --max-bytes pass the whole string as a single argv element, making the test a false positive (tests file-not-found, not option validation)
-- "A termination signal kills processes that ignore it" needs a step def implementation (no matching step exists yet)
-- QM will report these as missing step definitions and false passes; Crew will make production changes, verification harness fixes may be needed
+## Pending Outbound
+
+- 2 harbour commits ahead of `origin/main`; they ride this voyage's outbound.
 
 ## Conventions
+
 - Trunk-based development: push to `origin/main` directly. No feature branches or PRs.
 
 ## Eval State
+
 - All @eval scenarios use Pi with `-p`, `--provider openrouter`, `--model`, `--skill`, `--session-dir`, `stdio: ['ignore', 'pipe', 'pipe']` in the harness. Resolved.

@@ -11,10 +11,10 @@ function setPlan(world, commands) {
   world.plan = JSON.stringify({ commands });
 }
 
-async function run(world) {
+async function run(world, nodeOptions = [], arguments_ = []) {
   world.directory ??= await mkdtemp(join(tmpdir(), "yoink-command-"));
   await writeFile(join(world.directory, "plan.json"), world.plan);
-  const child = spawn(process.execPath, [join(process.cwd(), "dist/cli.js"), "plan.json"], {
+  const child = spawn(process.execPath, [...nodeOptions, join(process.cwd(), "dist/cli.js"), ...arguments_, "plan.json"], {
     cwd: world.directory,
     stdio: ["ignore", "pipe", "pipe"],
   });
@@ -283,4 +283,45 @@ When("Yoink receives SIGINT", async function () {
   this.signalElapsed = Date.now() - this.signalledAt;
   const [stdout, stderr] = await Promise.all([stdoutPromise, stderrPromise]);
   this.result = { stdout, stderr, ...status };
+});
+
+Given("a plan command writes exactly {string} bytes and then writes more", function (_flag) {
+  setPlan(this, [{ label: "verbose", run: "printf 'abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ01'; sleep 0.2; printf 'more'" }]);
+});
+
+Given("a plan command writes 256 MiB to standard output with capture disabled", function () {
+  setPlan(this, [{ label: "flood", run: "dd if=/dev/zero bs=1M count=256", capture: false, timeout: 30 }]);
+});
+
+Given("a plan command writes 256 MiB to standard error", function () {
+  setPlan(this, [{ label: "flood", run: "dd if=/dev/zero bs=1M count=256 >&2", timeout: 30 }]);
+});
+
+When("the caller runs Yoink with a constrained heap and the plan", async function () {
+  await run(this, ["--max-old-space-size=64"]);
+});
+
+When("the caller runs Yoink with {string} and a constrained heap and the plan", async function (args) {
+  await run(this, ["--max-old-space-size=64"], args.split(" "));
+});
+
+Then("Yoink emits the complete bundle", function () {
+  assert.equal(this.result.code, 0);
+  const output = this.result.stdout.toString();
+  const boundary = output.match(/^Content-Type: multipart\/mixed; boundary=(.+)$/m)?.[1];
+  assert.ok(boundary);
+  assert.match(output, new RegExp(`--${boundary}--\\r\\n?$`));
+});
+
+Given("a plan has a long-running command followed by a command that writes a marker file", function () {
+  this.pidFile = "pids.txt";
+  this.markerFile = "marker-file";
+  setPlan(this, [
+    { label: "long", run: `printf '%s\\n' $$ >> ${this.pidFile}; sleep 5` },
+    { label: "marker", run: `touch ${this.markerFile}` },
+  ]);
+});
+
+Then("the marker file does not exist", async function () {
+  await assert.rejects(stat(join(this.directory, this.markerFile)), { code: "ENOENT" });
 });

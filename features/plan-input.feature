@@ -33,6 +33,7 @@ Feature: Retrieval plan input
     Given a plan file is missing
     When the caller runs Yoink with the plan
     Then Yoink prints a compact diagnostic for the missing file to standard error
+    And the diagnostic is a single line
     And Yoink exits with a non-zero status
 
   Scenario: Extra arguments are rejected
@@ -68,6 +69,7 @@ Feature: Retrieval plan input
     Given a plan file contains malformed JSON
     When the caller runs Yoink with the plan
     Then Yoink prints a compact diagnostic for invalid JSON to standard error
+    And the diagnostic is a single line
     And Yoink exits with a non-zero status before executing a retrieval command
 
   Scenario Outline: An invalid plan identifies its invalid JSON path

@@ -33,12 +33,16 @@ function usage() {
  * @planks("the command prints its working directory")
  * @planks("Yoink receives a termination signal")
  * @planks("Yoink receives SIGINT")
+ * @planks("the marker file does not exist")
  * @planks("the caller redirects Yoink standard output to {string}")
  * @planks("Yoink exits with a non-zero status before executing a retrieval command")
  * @planks("a plan whose (.+) is invalid")
  * @planks("a plan command has a cwd that points to a file")
  * @planks("the caller runs Yoink with {string} and the plan")
  * @planks("the caller provides {string}")
+ * @planks("Yoink prints a compact diagnostic for the missing file to standard error")
+ * @planks("Yoink prints a compact diagnostic for invalid JSON to standard error")
+ * @planks("the diagnostic is a single line")
  */
 async function main() {
     const args = process.argv.slice(2);
@@ -103,16 +107,23 @@ async function main() {
         usage();
         return;
     }
-    let input;
-    if (argument === "-") {
-        input = "";
-        for await (const chunk of process.stdin)
-            input += chunk;
+    let plan;
+    try {
+        let input = "";
+        if (argument === "-") {
+            for await (const chunk of process.stdin)
+                input += chunk;
+        }
+        else {
+            input = await readFile(argument, "utf8");
+        }
+        plan = JSON.parse(input);
     }
-    else {
-        input = await readFile(argument, "utf8");
+    catch (error) {
+        process.stderr.write(`${error.message}\n`);
+        process.exitCode = 1;
+        return;
     }
-    const plan = JSON.parse(input);
     if (typeof plan !== "object" ||
         plan === null ||
         !("commands" in plan) ||
@@ -188,6 +199,7 @@ async function main() {
     const results = [];
     /**
      * @planks("the caller runs Yoink with the plan")
+     * @planks("the command result metadata indicates stdout was truncated")
      * @planks("the command result metadata indicates stderr was truncated")
      */
     const execute = (command, piped = false) => {
@@ -204,9 +216,11 @@ async function main() {
         const stderr = [];
         const collectingStdout = command.capture !== false && !(command.pipe && command.capture !== true);
         let stdoutCollected = 0;
+        let stdoutTruncated = false;
         child.stdout?.on("data", (chunk) => {
             if (collectingStdout) {
                 if (maxBytes !== undefined && stdoutCollected >= maxBytes) {
+                    stdoutTruncated = true;
                     return;
                 }
                 stdout.push(chunk);
@@ -232,7 +246,6 @@ async function main() {
                 ? Buffer.alloc(0)
                 : Buffer.concat(stdout);
             let stderrBuf = Buffer.concat(stderr);
-            let stdoutTruncated = false;
             let stderrTruncated = false;
             if (maxBytes !== undefined) {
                 if (stdoutBuf.length > maxBytes) {
@@ -260,6 +273,8 @@ async function main() {
     };
     const commands = plan.commands;
     for (let index = 0; index < commands.length;) {
+        if (cleaningUp)
+            break;
         const pipeline = [execute(commands[index])];
         while (commands[index].pipe && index + 1 < commands.length) {
             index += 1;
