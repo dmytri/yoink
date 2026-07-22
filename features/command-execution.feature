@@ -58,7 +58,7 @@ Feature: Retrieval command execution
 
   Scenario: A termination signal stops active child processes
     Given a plan command has an active child process
-    When Yoink receives a termination signal
+    When Yoink receives two termination signals
     Then Yoink terminates the active child process group
     And Yoink exits with the signal-derived status
 

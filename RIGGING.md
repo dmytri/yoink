@@ -19,9 +19,10 @@
 - coverage: `npx c8 npx cucumber-js --tags "@logic and not @captain and not @shipwright"`
 - broad-eval: `set -a; . .env; set +a; OPENROUTER_API_KEY="$HARNESS_OPENROUTER_API_KEY" npx cucumber-js --tags "@eval and not @captain and not @shipwright"`
 - coverage-eval: `set -a; . .env; set +a; OPENROUTER_API_KEY="$HARNESS_OPENROUTER_API_KEY" npx c8 npx cucumber-js --tags "@eval and not @captain and not @shipwright"`
+- focused-eval: `set -a; . .env; set +a; ref="{scenario}"; OPENROUTER_API_KEY="$HARNESS_OPENROUTER_API_KEY" npx cucumber-js "${ref%%:*}" --name "^${ref#*:}$" --tags "not @captain and not @shipwright"`
 - step-usage: `npx cucumber-js --dry-run --format usage-json --tags "not @captain and not @shipwright"`
 - plank-inventory: `rg -n '@planks(?:-provisional)?\(' src`
-- typecheck: `npx tsc src/cli.ts --noEmit --target ES2022 --module NodeNext --moduleResolution NodeNext --types node`
+- typecheck: `npm run codegen && npx tsc src/cli.ts --noEmit --target ES2022 --module NodeNext --moduleResolution NodeNext --types node`
 - lint: `npx gplint && npx biome check src`
 - conformance: none
 
@@ -46,8 +47,6 @@
 - dependency: @types/node
 - dependency: c8
 - dependency: gplint
-- dependency: ts-morph
-- dependency: tsx
 - dependency: typescript
 
 ## Outbound

@@ -2,8 +2,12 @@ import assert from "node:assert/strict";
 import { mkdtemp, readdir, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { spawn } from "node:child_process";
+import { execFile, spawn } from "node:child_process";
+import { promisify } from "node:util";
 import { Given, When, Then } from "@cucumber/cucumber";
+import { scenarioEvidenceDirectory, writeScenarioEvidence } from "./agent-retrieval-skill.js";
+
+const execFileAsync = promisify(execFile);
 
 async function sourceFiles(directory) {
   const entries = await readdir(directory, { withFileTypes: true });
@@ -84,4 +88,103 @@ Then("it sends SIGTERM only after the child process is observable", assertsChild
 When("Yoink's signal test waits for child-process readiness", async function () {
   await startsAnActiveCommand.call(this);
   await waitsForChildProcessReadiness.call(this);
+});
+
+Given("the production seams carry plank annotations", function () {
+  this.plankScanDirectory = join(process.cwd(), "src");
+});
+
+When("the plank-form check runs", { timeout: 30000 }, async function () {
+  const { stdout } = await execFileAsync(
+    "npx",
+    ["cucumber-js", "--dry-run", "--format", "usage-json", "--tags", "not @captain and not @shipwright"],
+    { cwd: process.cwd(), maxBuffer: 16 * 1024 * 1024 },
+  );
+  this.stepPatterns = JSON.parse(stdout).map((usage) => usage.pattern);
+  this.skeletonScenarios = [];
+  const specsDirectory = join(process.cwd(), "features");
+  const featureFiles = (await readdir(specsDirectory)).filter((name) => name.endsWith(".feature"));
+  for (const file of featureFiles) {
+    const lines = (await readFile(join(specsDirectory, file), "utf8")).split("\n");
+    let pendingTags = [];
+    for (const line of lines) {
+      if (/^\s*@/.test(line)) {
+        pendingTags.push(...line.trim().split(/\s+/));
+        continue;
+      }
+      const scenario = line.match(/^\s*Scenario(?: Outline)?:\s*(.+?)\s*$/);
+      if (scenario) {
+        if (pendingTags.includes("@captain")) this.skeletonScenarios.push(`features/${file}:${scenario[1]}`);
+        pendingTags = [];
+        continue;
+      }
+      if (line.trim() !== "") pendingTags = [];
+    }
+  }
+  this.plankFindings = [];
+  for (const path of await sourceFiles(this.plankScanDirectory)) {
+    const text = await readFile(path, "utf8");
+    const token = /@planks(-provisional)?\("((?:[^"\\]|\\.)*)"\)/g;
+    let match;
+    while ((match = token.exec(text)) !== null) {
+      const docblock = text.lastIndexOf("/**", match.index) > text.lastIndexOf("*/", match.index);
+      const after = docblock ? text.slice(text.indexOf("*/", match.index) + 2).replace(/^\s+/, "") : "";
+      const declaration =
+        docblock &&
+        /^(export\s+default\s+|export\s+)?(async\s+)?(function\*?\s|class\s|const\s|let\s|var\s)/.test(after);
+      this.plankFindings.push({
+        path,
+        provisional: Boolean(match[1]),
+        value: JSON.parse(`"${match[2]}"`),
+        docblock,
+        declaration,
+      });
+    }
+  }
+});
+
+Then("every plank token resolves to a docblock tag on a seam declaration", function () {
+  assert.ok(this.plankFindings.length > 0, "no plank annotations found");
+  for (const finding of this.plankFindings) {
+    assert.ok(finding.docblock, `${finding.path}: plank token outside a docblock`);
+    assert.ok(finding.declaration, `${finding.path}: plank docblock not attached to a seam declaration`);
+  }
+});
+
+Then("every plank string matches a current step-definition pattern", function () {
+  for (const finding of this.plankFindings.filter((finding) => !finding.provisional))
+    assert.ok(
+      this.stepPatterns.includes(finding.value),
+      `${finding.path}: no current step-definition pattern "${finding.value}"`,
+    );
+});
+
+Then("every provisional plank names a skeleton scenario awaiting review", function () {
+  for (const finding of this.plankFindings.filter((finding) => finding.provisional))
+    assert.ok(
+      this.skeletonScenarios.includes(finding.value),
+      `${finding.path}: provisional plank names no skeleton scenario "${finding.value}"`,
+    );
+});
+
+Given("the evaluation harness support", function () {
+  this.harnessSupport = { scenarioEvidenceDirectory, writeScenarioEvidence };
+});
+
+When("an evaluation scenario writes its evidence", async function () {
+  this.evidenceDirectory = await this.harnessSupport.writeScenarioEvidence("An evaluation scenario", {
+    status: 0,
+    stdout: "stdout\n",
+    stderr: "stderr\n",
+    duration: 1,
+  });
+});
+
+Then("the evidence path is unique to the scenario", async function () {
+  assert.equal(this.evidenceDirectory, this.harnessSupport.scenarioEvidenceDirectory("An evaluation scenario"));
+  assert.ok(this.evidenceDirectory.includes("an-evaluation-scenario"));
+  assert.notEqual(this.evidenceDirectory, this.harnessSupport.scenarioEvidenceDirectory("A different evaluation scenario"));
+  const files = await readdir(this.evidenceDirectory);
+  for (const file of ["exit-status", "stdout", "stderr", "duration", "session.jsonl"])
+    assert.ok(files.includes(file));
 });

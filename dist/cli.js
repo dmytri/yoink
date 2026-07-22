@@ -2,29 +2,18 @@
 import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { readFile, realpath, stat } from "node:fs/promises";
+import usageText from "./usage-text.js";
 /** @planks("Yoink exits with a non-zero status") */
 function invalid(path) {
     process.stderr.write(`${path} is invalid\n`);
     process.exitCode = 1;
 }
+/**
+ * @planks("Yoink prints usage and exits successfully")
+ * @planks("Yoink prints the usage text from {string}")
+ */
 function usage() {
-    process.stdout.write([
-        "usage: yoink [--pipefail|--no-pipefail] [--max-bytes <n>] <plan>",
-        "",
-        'A plan is a JSON file or stdin stream with a "commands" array.',
-        'Each command needs "label" and "run". Optional fields:',
-        "  cwd       working directory (relative to Yoink's CWD)",
-        "  timeout   seconds before the command is killed (default: 1)",
-        "  pipe      send stdout to the next command's stdin",
-        "  capture   include a piped command's stdout in the output bundle",
-        "",
-        "Examples:",
-        "  yoink plan.json",
-        "  cat plan.json | yoink -",
-        "  yoink --pipefail plan.json",
-        "  yoink --no-pipefail plan.json",
-        "",
-    ].join("\n"));
+    process.stdout.write(usageText);
 }
 /**
  * @planks("the caller runs {string}")

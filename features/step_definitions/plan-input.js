@@ -34,12 +34,6 @@ async function run(world, input) {
   world.result = { stdout, stderr, status };
 }
 
-Given("a plan file named {string} contains one retrieval command", async function (name) {
-  this.directory = await mkdtemp(join(tmpdir(), "yoink-plan-"));
-  this.argument = name;
-  await writeFile(join(this.directory, name), plan());
-});
-
 Given("a plan file named {string} contains a root command collection with one retrieval command", async function (name) {
   this.directory = await mkdtemp(join(tmpdir(), "yoink-plan-"));
   this.argument = name;
@@ -83,11 +77,6 @@ Given("a root command collection has a failing piped producer and a successful c
     { label: "destination", run: "cat >/dev/null" },
   ];
   await writeFile(join(this.directory, "plan.json"), JSON.stringify({ commands: this.commands }));
-});
-
-Given("standard input contains a plan with one retrieval command", async function () {
-  this.directory = await mkdtemp(join(tmpdir(), "yoink-stdin-"));
-  this.stdin = plan();
 });
 
 Given("standard input contains a root command collection with one retrieval command", async function () {
@@ -205,6 +194,10 @@ Given("the caller provides {string}", function (flag) {
   this.directory = process.cwd();
 });
 
+Then("Yoink prints the usage text from {string}", function (asset) {
+  assert.equal(this.result.stdout.toString(), readFileSync(join(process.cwd(), asset), "utf8"));
+});
+
 Then("Yoink prints the package version and exits successfully", function () {
   assert.equal(this.result.status, 0);
   const pkg = JSON.parse(readFileSync(join(process.cwd(), "package.json"), "utf8"));
@@ -214,10 +207,6 @@ Then("Yoink prints the package version and exits successfully", function () {
 Given("a plan file is missing", async function () {
   this.directory = await mkdtemp(join(tmpdir(), "yoink-missing-"));
   this.argument = "no-such-file.json";
-});
-
-Then("Yoink prints a diagnostic for the missing file to standard error", function () {
-  assert.match(this.result.stderr.toString(), /no such file|not found|enoent/i);
 });
 
 Given("the caller provides an extra argument", function () {

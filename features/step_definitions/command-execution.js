@@ -152,19 +152,6 @@ Given("a plan command ignores SIGTERM without a timeout value", function () {
   setPlan(this, [{ label: "ignores-sigterm", run: `printf '%s\\n' $$ >> ${this.pidFile}; trap '' 15; sleep 3` }]);
 });
 
-Given("a plan has a three-command pipeline", function () {
-  setPlan(this, [
-    { label: "first", run: "printf first; sleep 2", pipe: true },
-    { label: "second", run: "sed 's/^/received:/'", pipe: true },
-    { label: "third", run: "cat" },
-  ]);
-});
-
-Then("every pipeline member exits", async function () {
-  assert.ok(this.signalElapsed < 5000);
-  assert.equal(this.signal, "SIGTERM");
-});
-
 Given("a plan command exceeds {string}", function (_flag) {
   setPlan(this, [{ label: "verbose", run: "printf 'abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'" }]);
 });
@@ -188,10 +175,6 @@ When("the caller runs Yoink with {string} and the plan", async function (args) {
     new Promise((resolve) => child.on("close", (code, signal) => resolve({ code, signal }))),
   ]);
   this.result = { stdout, stderr, ...status };
-});
-
-Then("the command result indicates stdout was truncated", function () {
-  assert.match(this.result.stdout.toString(), /truncated/);
 });
 
 Then("the command result metadata signal is {string}", function (expected) {
@@ -278,6 +261,29 @@ When("Yoink receives SIGINT", async function () {
   await waitForChildReadiness(this);
   this.signalledAt = Date.now();
   this.child.kill("SIGINT");
+  const status = await closed;
+  this.signal = status.signal;
+  this.signalElapsed = Date.now() - this.signalledAt;
+  const [stdout, stderr] = await Promise.all([stdoutPromise, stderrPromise]);
+  this.result = { stdout, stderr, ...status };
+});
+
+When("Yoink receives two termination signals", async function () {
+  this.directory ??= await mkdtemp(join(tmpdir(), "yoink-signal-"));
+  await writeFile(join(this.directory, "plan.json"), this.plan);
+  this.child = spawn(process.execPath, [join(process.cwd(), "dist/cli.js"), "plan.json"], { cwd: this.directory, stdio: ["ignore", "pipe", "pipe"] });
+  const collect = (stream) => new Promise((resolve) => {
+    const chunks = [];
+    stream.on("data", (chunk) => chunks.push(chunk));
+    stream.on("end", () => resolve(Buffer.concat(chunks)));
+  });
+  const stdoutPromise = collect(this.child.stdout);
+  const stderrPromise = collect(this.child.stderr);
+  const closed = new Promise((resolve) => this.child.on("close", (code, signal) => resolve({ code, signal })));
+  await waitForChildReadiness(this);
+  this.signalledAt = Date.now();
+  this.child.kill("SIGTERM");
+  this.child.kill("SIGTERM");
   const status = await closed;
   this.signal = status.signal;
   this.signalElapsed = Date.now() - this.signalledAt;

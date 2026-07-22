@@ -22,7 +22,8 @@ Feature: Retrieval plan input
   Scenario: Help flag prints usage
     Given the caller provides "--help"
     When the caller runs Yoink
-    Then Yoink prints usage and exits successfully
+    Then Yoink prints the usage text from "assets/usage.txt"
+    And Yoink exits successfully
 
   Scenario: Version flag prints version
     Given the caller provides "--version"

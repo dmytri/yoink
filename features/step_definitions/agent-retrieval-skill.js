@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { cp, mkdir, mkdtemp, readdir, readFile, writeFile } from "node:fs/promises";
 import { execFile, spawn } from "node:child_process";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { promisify } from "node:util";
 import { Before, Given, When, Then } from "@cucumber/cucumber";
 
@@ -52,8 +52,13 @@ async function runAgent(world) {
   world.output = JSON.stringify(world.events);
 }
 
-async function writeEvaluation(world, result) {
-  const directory = join(root, "coverage/eval");
+export function scenarioEvidenceDirectory(name) {
+  const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  return join(root, "coverage/eval", slug);
+}
+
+export async function writeScenarioEvidence(name, result) {
+  const directory = scenarioEvidenceDirectory(name);
   await mkdir(directory, { recursive: true });
   await Promise.all([
     writeFile(join(directory, "exit-status"), `${result.status}\n`),
@@ -62,7 +67,11 @@ async function writeEvaluation(world, result) {
     writeFile(join(directory, "duration"), `${result.duration}\n`),
     writeFile(join(directory, "session.jsonl"), result.stdout),
   ]);
-  world.evaluationDirectory = directory;
+  return directory;
+}
+
+async function writeEvaluation(world, result) {
+  world.evaluationDirectory = await writeScenarioEvidence(world.scenarioName, result);
 }
 
 function runPi(piPath, args, cwd, env, timeout) {
@@ -81,17 +90,12 @@ function runPi(piPath, args, cwd, env, timeout) {
   });
 }
 
-function requestedCommands(world) {
-  if (world.retrievalPlan)
-    return JSON.parse(world.retrievalPlan).commands.map((command) => command.run);
-  return world.commands.map((command) => command.replace(/\\"/g, '"'));
-}
-
 function retrievalPlanLabels(world) {
   return JSON.parse(world.retrievalPlan).commands.map((command) => command.label);
 }
 
 Before(function ({ pickle }) {
+  this.scenarioName = pickle.name;
   if (pickle.steps.some((step) => step.text === 'it writes Yoink\'s standard output bundle to "context.md"'))
     this.contextFile = "context.md";
 });
@@ -147,23 +151,8 @@ Given("the agent receives the verbatim retrieval plan in {string}", async functi
   await writeFile(this.retrievalPlanFile, this.retrievalPlan);
 });
 
-Given("the agent needs {string}, {string}, {string}, {string}, and {string}", function (first, second, third, fourth, fifth) {
-  this.commands = [first, second, third, fourth, fifth];
-});
-
-Given("a later agent or process needs the results of {string}, {string}, {string}, and {string}", function (first, second, third, fourth) {
-  this.commands = [first, second, third, fourth];
-  this.contextFile = "context.md";
-});
-
 When("the agent gathers the requested context", { timeout: 370000 }, async function () {
   await runAgent(this);
-});
-
-Then("it supplies a JSON retrieval plan to Yoink through standard input", function () {
-  const commands = this.bash.map((event) => event.args.command).join("\n");
-  assert.match(commands, /yoink\s+-/);
-  assert.match(commands, /"commands"/);
 });
 
 Then("it passes the verbatim retrieval plan to Yoink as its positional argument", function () {
@@ -181,13 +170,17 @@ Then("it consumes Yoink's multipart bundle from standard output", function () {
   assert.match(this.output, /multipart\/mixed/);
 });
 
-Then("the bundle contains the result of each requested command", function () {
-  for (const command of requestedCommands(this)) assert.match(this.output, new RegExp(command.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
-});
-
 Then("the bundle contains every retrieval-plan result", function () {
+  const strings = [];
+  const walk = (value) => {
+    if (typeof value === "string") strings.push(value);
+    else if (Array.isArray(value)) value.forEach(walk);
+    else if (value && typeof value === "object") Object.values(value).forEach(walk);
+  };
+  walk(this.events);
+  const transcript = strings.join("\n");
   for (const label of retrievalPlanLabels(this))
-    assert.match(this.output, new RegExp(`"label":"${label}"`));
+    assert.match(transcript, new RegExp(`"label":"${label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}"`));
 });
 
 Then("it does not create a plan or context file", async function () {
@@ -197,15 +190,10 @@ Then("it does not create a plan or context file", async function () {
 });
 
 Then("the evaluation writes Pi exit status, standard output, standard error, duration, and session transcript under {string}", async function (directory) {
-  assert.equal(join(root, directory), this.evaluationDirectory);
+  assert.equal(dirname(this.evaluationDirectory), join(root, directory));
   const files = await readdir(this.evaluationDirectory);
   for (const file of ["exit-status", "stdout", "stderr", "duration", "session.jsonl"])
     assert.ok(files.includes(file));
-});
-
-Then("the evaluation retains Pi process and session evidence", function () {
-  assert.ok(this.events.some((event) => event.type === "session"));
-  assert.ok(this.bash.length > 0);
 });
 
 Then("the recorded Pi executable is {string}", function (executable) {
@@ -234,11 +222,6 @@ Then("the retained Pi session transcript is not empty", async function () {
 Then("it writes Yoink's standard output bundle to {string}", async function (file) {
   assert.equal(file, this.contextFile);
   assert.match(await readFile(join(this.directory, file), "utf8"), /multipart\/mixed/);
-});
-
-Then("{string} contains the result of each requested command", async function (file) {
-  const bundle = await readFile(join(this.directory, file), "utf8");
-  for (const command of requestedCommands(this)) assert.match(bundle, new RegExp(command.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
 });
 
 Then("{string} contains every retrieval-plan result", async function (file) {

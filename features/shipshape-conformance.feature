@@ -23,3 +23,17 @@ Feature: Shipshape conformance
     Given a plan command has an active child process
     When Yoink's signal test waits for child-process readiness
     Then it sends SIGTERM only after the child process is observable
+
+  @conformance
+  Scenario: Plank annotations resolve to current step-definition patterns
+    Given the production seams carry plank annotations
+    When the plank-form check runs
+    Then every plank token resolves to a docblock tag on a seam declaration
+    And every plank string matches a current step-definition pattern
+    And every provisional plank names a skeleton scenario awaiting review
+
+  @conformance
+  Scenario: Evaluation runs keep per-scenario evidence
+    Given the evaluation harness support
+    When an evaluation scenario writes its evidence
+    Then the evidence path is unique to the scenario
