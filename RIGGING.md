@@ -10,7 +10,7 @@
 - specs: features
 - verification: features/step_definitions
 - assets: assets
-- scantlings: none
+- scantlings: scantlings
 
 ## Commands
 - discover: `npx cucumber-js --dry-run --tags "not @captain and not @shipwright"`
@@ -44,6 +44,7 @@
 - dependency: @earendil-works/pi-coding-agent
 - dependency: @biomejs/biome
 - dependency: @cucumber/cucumber
+- dependency: ajv
 - dependency: @types/node
 - dependency: c8
 - dependency: gplint

@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/dmytri/yoink/plan.schema.json",
+  "title": "Yoink retrieval plan",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["commands"],
+  "properties": {
+    "commands": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/command"
+      }
+    }
+  },
+  "$defs": {
+    "command": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["label", "run"],
+      "properties": {
+        "label": {
+          "type": "string",
+          "minLength": 1
+        },
+        "run": {
+          "type": "string",
+          "minLength": 1
+        },
+        "timeout": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 2147483.647
+        },
+        "cwd": {
+          "type": "string"
+        },
+        "pipe": {
+          "type": "boolean"
+        },
+        "capture": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}

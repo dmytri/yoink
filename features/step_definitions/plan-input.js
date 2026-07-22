@@ -77,7 +77,14 @@ Given("a producer emits output continuously", async function () {
   this.commands = [{ label: "producer", run: "yes", pipe: true, timeout: 2 }];
 });
 
+Given("a producer emits one line and remains active until its timeout", async function () {
+  this.pipefail = true;
+  this.directory = await mkdtemp(join(tmpdir(), "yoink-pipefail-timeout-"));
+  this.commands = [{ label: "producer", run: "printf 'producer\\n'; sleep 2", pipe: true, timeout: 1 }];
+});
+
 Given("the consumer exits after reading one line", async function () {
+  this.expectedConsumerLabel = "consumer";
   this.commands.push({ label: "consumer", run: "head -n 1 >/dev/null" });
   await writeFile(join(this.directory, "plan.json"), JSON.stringify({ commands: this.commands }));
 });
@@ -89,6 +96,7 @@ Given("a root command collection has a failing piped producer and a successful c
     { label: "source", run: "printf producer; false", pipe: true },
     { label: "destination", run: "cat >/dev/null" },
   ];
+  this.expectedConsumerLabel = "destination";
   await writeFile(join(this.directory, "plan.json"), JSON.stringify({ commands: this.commands }));
 });
 
@@ -193,7 +201,8 @@ Then("Yoink exits successfully", function () {
 
 Then("Yoink exits with a non-zero status", function () {
   assert.notEqual(this.result.status, 0);
-  if (this.pipefail) assert.ok(this.result.stdout.toString().includes('"label":"destination"'));
+  if (this.pipefail)
+    assert.ok(this.result.stdout.toString().includes(`"label":"${this.expectedConsumerLabel}"`));
 });
 
 Then("Yoink exits with a non-zero status before executing a retrieval command", function () {
@@ -285,4 +294,14 @@ Then("the producer result records an intentional pipe-close status", function ()
   assert.ok(producer);
   assert.equal(producer.timedOut, false);
   assert.ok(producer.pipeClosed === true || producer.signal === "SIGPIPE");
+});
+
+Then("the producer result records both an intentional pipe-close status and a timeout", function () {
+  const metadata = [...this.result.stdout.toString().matchAll(
+    /Content-Disposition: form-data; name="metadata"\r\n\r\n(\{.*?\})\r\n--/g,
+  )].map((match) => JSON.parse(match[1]));
+  const producer = metadata.find((entry) => entry.label === "producer");
+  assert.ok(producer);
+  assert.equal(producer.timedOut, true);
+  assert.equal(producer.pipeClosed, true);
 });

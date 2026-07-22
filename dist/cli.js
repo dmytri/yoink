@@ -194,6 +194,7 @@ async function main() {
     const results = [];
     /**
      * @planks("the caller runs Yoink with the plan")
+     * @planks("the caller runs Yoink with {string}")
      * @planks("the command result metadata indicates stdout was truncated")
      * @planks("the command result metadata indicates stderr was truncated")
      */
@@ -313,7 +314,7 @@ async function main() {
         const completed = await Promise.all(pipeline.map(({ status }) => status));
         results.push(...completed);
         const failed = pipefail ? completed : completed.slice(-1);
-        if (failed.some(({ timedOut, code, signal, pipeClosed }) => !pipeClosed && (timedOut || code !== 0 || signal)))
+        if (failed.some(({ timedOut, code, signal, pipeClosed }) => timedOut || (!pipeClosed && (code !== 0 || signal))))
             process.exitCode = 1;
         index += 1;
     }

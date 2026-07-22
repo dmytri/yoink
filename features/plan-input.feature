@@ -65,6 +65,13 @@ Feature: Retrieval plan input
     And the pipeline finishes before the producer timeout
     And the producer result records an intentional pipe-close status
 
+  Scenario: Pipefail reports a producer timeout after the consumer closes
+    Given a producer emits one line and remains active until its timeout
+    And the consumer exits after reading one line
+    When the caller runs Yoink with "--pipefail"
+    Then Yoink exits with a non-zero status
+    And the producer result records both an intentional pipe-close status and a timeout
+
   Scenario: Pipefail reports a failed piped producer
     Given a root command collection has a failing piped producer and a successful consumer
     When the caller runs Yoink with "--pipefail"
@@ -74,6 +81,12 @@ Feature: Retrieval plan input
     Given a root command collection has a failing piped producer and a successful consumer
     When the caller runs Yoink with "--no-pipefail"
     Then Yoink exits successfully
+
+  @contract
+  Scenario: A retrieval plan conforms to the plan schema
+    Given a valid retrieval plan
+    When the plan is checked against "scantlings/plan.schema.json"
+    Then the plan conforms to the schema
 
   Scenario: Malformed plan input is rejected
     Given a plan file contains malformed JSON
@@ -100,19 +113,9 @@ Feature: Retrieval plan input
       | command stdin                   | $.commands[0].stdin   |
       | non-positive command timeout    | $.commands[0].timeout |
       | non-finite parsed command timeout | $.commands[0].timeout |
-      | non-directory command cwd       | $.commands[0].cwd     |
-
-  Scenario: Non-boolean pipe is rejected
-    Given a plan whose non-boolean pipe is invalid
-    When the caller runs Yoink with the plan
-    Then Yoink exits with a non-zero status
-    And Yoink writes a validation diagnostic for "$.commands[0].pipe" to standard error
-
-  Scenario: Non-boolean capture is rejected
-    Given a plan whose non-boolean capture is invalid
-    When the caller runs Yoink with the plan
-    Then Yoink exits with a non-zero status
-    And Yoink writes a validation diagnostic for "$.commands[0].capture" to standard error
+       | non-directory command cwd        | $.commands[0].cwd     |
+       | non-boolean pipe                | $.commands[0].pipe     |
+       | non-boolean capture              | $.commands[0].capture   |
 
   Scenario: File path as cwd is rejected
     Given a plan command has a cwd that points to a file

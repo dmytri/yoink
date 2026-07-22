@@ -230,6 +230,7 @@ async function main() {
 	const results: Result[] = [];
 	/**
 	 * @planks("the caller runs Yoink with the plan")
+	 * @planks("the caller runs Yoink with {string}")
 	 * @planks("the command result metadata indicates stdout was truncated")
 	 * @planks("the command result metadata indicates stderr was truncated")
 	 */
@@ -361,7 +362,7 @@ async function main() {
 		if (
 			failed.some(
 				({ timedOut, code, signal, pipeClosed }) =>
-					!pipeClosed && (timedOut || code !== 0 || signal),
+					timedOut || (!pipeClosed && (code !== 0 || signal)),
 			)
 		)
 			process.exitCode = 1;
