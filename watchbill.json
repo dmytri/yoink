@@ -1,8 +1,0 @@
-{
-  "watch1": {
-    "scenarios": [
-      "features/plan-input.feature:Pipefail reports a producer timeout after the consumer closes",
-      "features/plan-input.feature:A retrieval plan conforms to the plan schema"
-    ]
-  }
-}

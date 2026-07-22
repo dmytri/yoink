@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawn } from "node:child_process";
 import { Given, When, Then } from "@cucumber/cucumber";
+import Ajv2020 from "ajv/dist/2020.js";
 
 function plan(command = { label: "retrieval", run: "printf retrieved" }) {
   return JSON.stringify({ commands: [command] });
@@ -122,6 +123,21 @@ Given("a plan command has a cwd that points to a file", async function () {
       commands: [{ label: "retrieval", run: "printf retrieved", cwd: filePath }],
     }),
   );
+});
+
+Given("a valid retrieval plan", function () {
+  this.validPlan = { commands: [{ label: "retrieval", run: "printf retrieved" }] };
+});
+
+When("the plan is checked against {string}", function (schemaPath) {
+  const schema = JSON.parse(readFileSync(join(process.cwd(), schemaPath), "utf8"));
+  const validate = new Ajv2020().compile(schema);
+  this.planConforms = validate(this.validPlan);
+  this.planValidationErrors = validate.errors;
+});
+
+Then("the plan conforms to the schema", function () {
+  assert.equal(this.planConforms, true, JSON.stringify(this.planValidationErrors));
 });
 
 Given(/a plan whose (.+) is invalid/, async function (invalidValue) {
