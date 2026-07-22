@@ -25,7 +25,10 @@ type Result = {
 	timedOut: boolean;
 	stdoutTruncated: boolean;
 	stderrTruncated: boolean;
+	pipeClosed: boolean;
 };
+
+const MAX_TIMEOUT_MILLISECONDS = 2_147_483_647;
 
 /** @planks("Yoink exits with a non-zero status") */
 function invalid(path: string) {
@@ -176,7 +179,10 @@ async function main() {
 		}
 		if (
 			"timeout" in command &&
-			(!(typeof command.timeout === "number") || command.timeout <= 0)
+			(typeof command.timeout !== "number" ||
+				!Number.isFinite(command.timeout) ||
+				command.timeout <= 0 ||
+				command.timeout * 1000 > MAX_TIMEOUT_MILLISECONDS)
 		)
 			return invalid(`${path}.timeout`);
 		if ("cwd" in command) {
@@ -274,6 +280,8 @@ async function main() {
 			stderrTruncated = result.truncated;
 		});
 		let timedOut = false;
+		let pipeClosed = false;
+		let finished = false;
 		const timeout = setTimeout(
 			() => {
 				timedOut = true;
@@ -293,6 +301,7 @@ async function main() {
 		}>((resolve) =>
 			child.on("close", (code, signal) => resolve({ code, signal })),
 		).then(async (status) => {
+			finished = true;
 			clearTimeout(timeout);
 			if (child.pid !== undefined) childProcessGroups.delete(-child.pid);
 			const stdoutBuf =
@@ -310,9 +319,17 @@ async function main() {
 				timedOut,
 				stdoutTruncated,
 				stderrTruncated,
+				pipeClosed,
 			};
 		});
-		return { child, status };
+		return {
+			child,
+			status,
+			markPipeClosed: () => {
+				pipeClosed = true;
+			},
+			isFinished: () => finished,
+		};
 	};
 	const commands = plan.commands as Command[];
 	for (let index = 0; index < commands.length; ) {
@@ -322,9 +339,18 @@ async function main() {
 			index += 1;
 			const next = execute(commands[index], true);
 			if (next.child.stdin) {
+				const producer = pipeline.at(-1);
+				const closeProducer = () => {
+					if (!producer?.isFinished()) {
+						producer?.markPipeClosed();
+						producer?.child.stdout?.destroy();
+					}
+				};
 				next.child.stdin.on("error", (error: NodeJS.ErrnoException) => {
 					if (error.code !== "EPIPE") throw error;
+					closeProducer();
 				});
+				next.child.on("close", closeProducer);
 				pipeline.at(-1)?.child.stdout?.pipe(next.child.stdin);
 			}
 			pipeline.push(next);
@@ -334,7 +360,8 @@ async function main() {
 		const failed = pipefail ? completed : completed.slice(-1);
 		if (
 			failed.some(
-				({ timedOut, code, signal }) => timedOut || code !== 0 || signal,
+				({ timedOut, code, signal, pipeClosed }) =>
+					!pipeClosed && (timedOut || code !== 0 || signal),
 			)
 		)
 			process.exitCode = 1;
@@ -355,6 +382,7 @@ async function main() {
 				timedOut: result.timedOut,
 				stdout_truncated: result.stdoutTruncated,
 				stderr_truncated: result.stderrTruncated,
+				pipeClosed: result.pipeClosed,
 			}),
 		);
 	const bodies = results.flatMap((result, i) => [

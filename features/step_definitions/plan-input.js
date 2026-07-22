@@ -16,6 +16,7 @@ async function run(world, input) {
     await writeFile(join(world.directory, "plan.json"), world.plan);
   }
   const arguments_ = world.arguments ?? (world.argument === undefined ? ["plan.json"] : world.argument ? [world.argument] : []);
+  const startedAt = Date.now();
   const child = spawn(process.execPath, [join(process.cwd(), "dist/cli.js"), ...arguments_], {
     cwd: world.directory,
     stdio: ["pipe", "pipe", "pipe"],
@@ -31,7 +32,7 @@ async function run(world, input) {
     collect(child.stderr),
     new Promise((resolve) => child.on("close", (code) => resolve(code))),
   ]);
-  world.result = { stdout, stderr, status };
+  world.result = { stdout, stderr, status, elapsedMs: Date.now() - startedAt };
 }
 
 Given("a plan file named {string} contains a root command collection with one retrieval command", async function (name) {
@@ -72,7 +73,8 @@ Given("a root command collection has a piped command that stays active after wri
 Given("a producer emits output continuously", async function () {
   this.directory = await mkdtemp(join(tmpdir(), "yoink-epipe-"));
   this.argument = "plan.json";
-  this.commands = [{ label: "producer", run: "yes", pipe: true }];
+  this.producerTimeoutMs = 2_000;
+  this.commands = [{ label: "producer", run: "yes", pipe: true, timeout: 2 }];
 });
 
 Given("the consumer exits after reading one line", async function () {
@@ -122,7 +124,6 @@ Given(/a plan whose (.+) is invalid/, async function (invalidValue) {
     "non-array commands": { commands: {} },
     "empty command label": { commands: [{ label: "", run: "printf executed" }] },
     "empty command run": { commands: [{ label: "retrieval", run: "" }] },
-    "non-finite command timeout": { commands: [{ label: "retrieval", run: "printf executed", timeout: Infinity }] },
     "unknown top-level field": { commands: [], unexpected: true },
     "unknown command field": { commands: [{ label: "retrieval", run: "printf executed", extra: true }] },
     "command stdin": { commands: [{ label: "retrieval", run: "printf executed", stdin: "args" }] },
@@ -132,7 +133,14 @@ Given(/a plan whose (.+) is invalid/, async function (invalidValue) {
     "non-boolean capture": { commands: [{ label: "retrieval", run: "printf executed", capture: "yes" }] },
     "non-string cwd": { commands: [{ label: "retrieval", run: "printf executed", cwd: 123 }] },
   };
-  await writeFile(join(this.directory, "plan.json"), JSON.stringify(values[invalidValue]));
+  if (invalidValue === "non-finite parsed command timeout") {
+    await writeFile(
+      join(this.directory, "plan.json"),
+      '{"commands":[{"label":"retrieval","run":"printf executed","timeout":1e309}]}',
+    );
+  } else {
+    await writeFile(join(this.directory, "plan.json"), JSON.stringify(values[invalidValue]));
+  }
 });
 
 When("the caller runs {string}", async function (argument) {
@@ -261,4 +269,20 @@ Then("Yoink prints a diagnostic for the invalid flag value to standard error", f
 
 Then("Yoink does not crash with EPIPE", function () {
   assert.doesNotMatch(this.result.stderr.toString(), /EPIPE/);
+});
+
+Then("the pipeline finishes before the producer timeout", function () {
+  assert.equal(this.result.status, 0);
+  assert.ok(this.result.elapsedMs < this.producerTimeoutMs);
+  assert.ok(this.result.elapsedMs < 1_000, `pipeline took ${this.result.elapsedMs}ms`);
+});
+
+Then("the producer result records an intentional pipe-close status", function () {
+  const metadata = [...this.result.stdout.toString().matchAll(
+    /Content-Disposition: form-data; name="metadata"\r\n\r\n(\{.*?\})\r\n--/g,
+  )].map((match) => JSON.parse(match[1]));
+  const producer = metadata.find((entry) => entry.label === "producer");
+  assert.ok(producer);
+  assert.equal(producer.timedOut, false);
+  assert.ok(producer.pipeClosed === true || producer.signal === "SIGPIPE");
 });

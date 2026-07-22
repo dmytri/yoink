@@ -62,6 +62,8 @@ Feature: Retrieval plan input
     When the caller runs Yoink with the plan
     Then Yoink emits the complete bundle
     And Yoink does not crash with EPIPE
+    And the pipeline finishes before the producer timeout
+    And the producer result records an intentional pipe-close status
 
   Scenario: Pipefail reports a failed piped producer
     Given a root command collection has a failing piped producer and a successful consumer
@@ -97,7 +99,7 @@ Feature: Retrieval plan input
       | unknown command field           | $.commands[0].extra   |
       | command stdin                   | $.commands[0].stdin   |
       | non-positive command timeout    | $.commands[0].timeout |
-      | non-finite command timeout      | $.commands[0].timeout |
+      | non-finite parsed command timeout | $.commands[0].timeout |
       | non-directory command cwd       | $.commands[0].cwd     |
 
   Scenario: Non-boolean pipe is rejected

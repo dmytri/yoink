@@ -1,11 +1,14 @@
 import assert from "node:assert/strict";
-import { spawn } from "node:child_process";
+import { execFile, spawn } from "node:child_process";
 import { mkdir, mkdtemp, readFile, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { promisify } from "node:util";
 import { Given, setDefaultTimeout, Then, When } from "@cucumber/cucumber";
 
 setDefaultTimeout(5000);
+
+const execFileAsync = promisify(execFile);
 
 function setPlan(world, commands) {
 	world.plan = JSON.stringify({ commands });
@@ -39,14 +42,28 @@ async function run(
 			stream.on("end", () => resolve(Buffer.concat(chunks)));
 		});
 	const rss = [];
+	const rssErrors = [];
+	const sample = async () => {
+		try {
+			if (process.platform === "linux") {
+				const status = await readFile(`/proc/${child.pid}/status`, "utf8");
+				const resident = status.match(/^VmRSS:\s+(\d+)\s+kB$/m);
+				if (resident) {
+					rss.push(Number(resident[1]) * 1024);
+					return;
+				}
+			}
+			const { stdout: resident } = await execFileAsync("ps", ["-o", "rss=", "-p", String(child.pid)]);
+			const kilobytes = Number.parseInt(resident.trim(), 10);
+			if (!Number.isFinite(kilobytes)) throw new Error("RSS sample was not numeric");
+			rss.push(kilobytes * 1024);
+		} catch (error) {
+			rssErrors.push(error);
+		}
+	};
+	if (sampleRss) await sample();
 	const sampler = sampleRss
-		? setInterval(async () => {
-				try {
-					const status = await readFile(`/proc/${child.pid}/status`, "utf8");
-					const resident = status.match(/^VmRSS:\s+(\d+)\s+kB$/m);
-					if (resident) rss.push(Number(resident[1]) * 1024);
-				} catch {}
-			}, 10)
+		? setInterval(sample, 10)
 		: undefined;
 	const [stdout, stderr, status] = await Promise.all([
 		collect(child.stdout),
@@ -60,8 +77,9 @@ async function run(
 		stdout,
 		stderr,
 		...status,
-		maxRss: Math.max(0, ...rss),
+		maxRss: rss.length > 0 ? Math.max(...rss) : null,
 		rssSamples: rss.length,
+		rssErrors,
 	};
 }
 

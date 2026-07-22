@@ -3,6 +3,7 @@ import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { readFile, realpath, stat } from "node:fs/promises";
 import usageText from "./usage-text.js";
+const MAX_TIMEOUT_MILLISECONDS = 2_147_483_647;
 /** @planks("Yoink exits with a non-zero status") */
 function invalid(path) {
     process.stderr.write(`${path} is invalid\n`);
@@ -139,7 +140,10 @@ async function main() {
                 return invalid(`${path}.${key}`);
         }
         if ("timeout" in command &&
-            (!(typeof command.timeout === "number") || command.timeout <= 0))
+            (typeof command.timeout !== "number" ||
+                !Number.isFinite(command.timeout) ||
+                command.timeout <= 0 ||
+                command.timeout * 1000 > MAX_TIMEOUT_MILLISECONDS))
             return invalid(`${path}.timeout`);
         if ("cwd" in command) {
             if (typeof command.cwd !== "string")
@@ -235,6 +239,8 @@ async function main() {
             stderrTruncated = result.truncated;
         });
         let timedOut = false;
+        let pipeClosed = false;
+        let finished = false;
         const timeout = setTimeout(() => {
             timedOut = true;
             if (child.pid !== undefined) {
@@ -248,6 +254,7 @@ async function main() {
             }
         }, (command.timeout ?? 1) * 1000);
         const status = new Promise((resolve) => child.on("close", (code, signal) => resolve({ code, signal }))).then(async (status) => {
+            finished = true;
             clearTimeout(timeout);
             if (child.pid !== undefined)
                 childProcessGroups.delete(-child.pid);
@@ -265,9 +272,17 @@ async function main() {
                 timedOut,
                 stdoutTruncated,
                 stderrTruncated,
+                pipeClosed,
             };
         });
-        return { child, status };
+        return {
+            child,
+            status,
+            markPipeClosed: () => {
+                pipeClosed = true;
+            },
+            isFinished: () => finished,
+        };
     };
     const commands = plan.commands;
     for (let index = 0; index < commands.length;) {
@@ -278,10 +293,19 @@ async function main() {
             index += 1;
             const next = execute(commands[index], true);
             if (next.child.stdin) {
+                const producer = pipeline.at(-1);
+                const closeProducer = () => {
+                    if (!producer?.isFinished()) {
+                        producer?.markPipeClosed();
+                        producer?.child.stdout?.destroy();
+                    }
+                };
                 next.child.stdin.on("error", (error) => {
                     if (error.code !== "EPIPE")
                         throw error;
+                    closeProducer();
                 });
+                next.child.on("close", closeProducer);
                 pipeline.at(-1)?.child.stdout?.pipe(next.child.stdin);
             }
             pipeline.push(next);
@@ -289,7 +313,7 @@ async function main() {
         const completed = await Promise.all(pipeline.map(({ status }) => status));
         results.push(...completed);
         const failed = pipefail ? completed : completed.slice(-1);
-        if (failed.some(({ timedOut, code, signal }) => timedOut || code !== 0 || signal))
+        if (failed.some(({ timedOut, code, signal, pipeClosed }) => !pipeClosed && (timedOut || code !== 0 || signal)))
             process.exitCode = 1;
         index += 1;
     }
@@ -305,6 +329,7 @@ async function main() {
         timedOut: result.timedOut,
         stdout_truncated: result.stdoutTruncated,
         stderr_truncated: result.stderrTruncated,
+        pipeClosed: result.pipeClosed,
     }));
     const bodies = results.flatMap((result, i) => [
         metadata(result, i),
