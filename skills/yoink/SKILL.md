@@ -12,6 +12,19 @@ description: Replace several stable context-retrieval calls with one Yoink tool 
 
 Use Yoink when an agent can decide several context-retrieval commands before seeing their results. One Yoink call replaces several sequential retrieval calls and gives the agent one consistent bundle to read. This reduces retrieval orchestration so the agent can reason once over the gathered context; Yoink does not replace reasoning. Stable retrievals are commands that can be chosen before inspecting their results. Deterministic shell pipelines may pass one command's output to another. Run `npx @dk/yoink`.
 
+If Yoink cannot be installed or `npx` cannot run it, tell the user. A plain Bash fallback is:
+
+```sh
+printf '%s\n' '--- AGENTS.md ---'
+cat -- AGENTS.md
+printf '%s\n' '--- README.md ---'
+cat -- README.md
+printf '%s\n' '--- source files ---'
+rg --files src
+```
+
+This fallback produces plain text instead of a multipart bundle and has no plan metadata or failure aggregation.
+
 ## Inline plan
 
 Send a JSON plan on standard input:

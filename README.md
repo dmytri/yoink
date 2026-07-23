@@ -1,5 +1,7 @@
 # @dk/yoink
 
+[![skills.sh](https://skills.sh/b/dmytri/yoink)](https://skills.sh/dmytri/yoink)
+
 > Yoink executes a retrieval plan and bundles the results into a model-ready multipart MIME bundle.
 
 Run many context-retrieval commands in one agent tool call, then return one structured bundle.
@@ -36,7 +38,7 @@ For editor validation and completion, add the published Yoink schema:
 The schema describes structural validation. Yoink additionally checks filesystem paths and pipeline placement at runtime. Print the installed schema with `yoink --schema`.
 
 | Field | Required | Type | Description |
-|---|---|---|---|---|
+|---|---|---|---|
 | `label` | yes | string | Human-readable name for the result |
 | `run` | yes | string | Shell command to execute |
 | `cwd` | no | string | Working directory, relative to Yoink's starting directory or absolute |
@@ -119,7 +121,7 @@ Yoink always emits the complete bundle, even after a command failure or timeout.
 
 ## Output
 
-Yoink writes a multipart MIME bundle to standard output. Each command result appears as three parts: JSON metadata (`index`, `label`, `command`, `cwd`, `exitCode`, `signal`, `durationMs`, `timeoutSeconds`, `timedOut`, `stdout_truncated`, `stderr_truncated`), stdout bytes, and stderr bytes. Stream bytes are preserved verbatim.
+Yoink writes a multipart MIME bundle to standard output. Each command result appears as three parts: JSON metadata (`index`, `label`, `command`, `cwd`, `exitCode`, `signal`, `durationMs`, `timeoutSeconds`, `timedOut`, `stdout_truncated`, `stderr_truncated`, `pipeClosed`), stdout bytes, and stderr bytes. Stream bytes are preserved verbatim.
 
 ## Consuming the bundle
 
@@ -188,7 +190,18 @@ Or it can pass a supplied plan file directly:
 npx @dk/yoink retrieval-plan.json
 ```
 
-The agent then consumes Yoink's standard-output bundle in one inference instead of issuing one tool request per retrieval command.
+If Yoink cannot be installed or `npx` cannot run it, tell the user that the Yoink skill could not be run. A simple Bash fallback is:
+
+```sh
+printf '%s\n' '--- AGENTS.md ---'
+cat -- AGENTS.md
+printf '%s\n' '--- README.md ---'
+cat -- README.md
+printf '%s\n' '--- source files ---'
+rg --files src
+```
+
+This fallback produces plain text, not Yoink's multipart bundle, and does not provide plan metadata or failure aggregation.
 
 ## Security
 
