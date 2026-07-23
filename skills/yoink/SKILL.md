@@ -79,7 +79,15 @@ Give every requested command one `commands` entry with a concise `label` and its
 
 The default timeout is 1 second. Set `timeout` explicitly for commands that may take longer, commonly `5` or `10` seconds. Do not rely on the default for network, package-manager, or other variable-latency commands.
 
-Limit output at the source when possible, for example with focused search patterns or `head`. Use `--max-bytes <n>` as a safety bound when retrievals may still produce large output. Truncation is reported in result metadata.
+Limit output at the source when possible, for example with focused search patterns or `head`. Use `--max-bytes <n>` to limit each command's captured stdout and stderr stream independently. It is not a total bundle-size limit. Truncation is reported in result metadata.
+
+For example:
+
+```sh
+npx @dk/yoink --max-bytes 100000 - <<'JSON'
+{"commands":[{"label":"Instructions","run":"cat -- AGENTS.md"}]}
+JSON
+```
 
 Capture is also intentional: standalone commands default to `capture: true`, while piped commands default to `capture: false`. Use `capture: false` for noisy output when only command metadata matters, and use `capture: true` on a piped command when its output must also remain in the bundle. Every command contributes `metadata`, `stdout`, and `stderr` MIME parts, so bundle size grows with captured output.
 

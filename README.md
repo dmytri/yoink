@@ -48,7 +48,13 @@ The schema describes structural validation. Yoink additionally checks filesystem
 
 The default command timeout is 1 second. Set `timeout` explicitly for commands that may take longer. Prefer a bounded value such as `5` or `10` seconds over relying on the default.
 
-Use `--max-bytes <n>` as a safety bound when a retrieval may produce large output. Prefer limiting output at the source with focused patterns or `head`; Yoink records stdout and stderr truncation in result metadata.
+Use `--max-bytes <n>` to limit each command's captured stdout and stderr stream independently. It is not a total bundle-size limit. Prefer limiting output at the source with focused patterns or `head`; Yoink records stdout and stderr truncation in result metadata.
+
+```sh
+npx @dk/yoink --max-bytes 100000 - <<'JSON'
+{"commands":[{"label":"Instructions","run":"cat -- AGENTS.md"}]}
+JSON
+```
 
 ```json
 {
