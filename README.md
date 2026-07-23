@@ -24,6 +24,17 @@ Yoink requires Node.js 22 or later and a POSIX shell.
 
 A plan is a JSON object with an ordered `commands` array. Each command is an object with these fields:
 
+For editor validation and completion, add the published Yoink schema:
+
+```json
+{
+  "$schema": "https://unpkg.com/@dk/yoink/plan.schema.json",
+  "commands": []
+}
+```
+
+The schema describes structural validation. Yoink additionally checks filesystem paths and pipeline placement at runtime. Print the installed schema with `yoink --schema`.
+
 | Field | Required | Type | Description |
 |---|---|---|---|---|
 | `label` | yes | string | Human-readable name for the result |

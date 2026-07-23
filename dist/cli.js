@@ -37,6 +37,10 @@ function usage() {
  */
 async function main() {
     const args = process.argv.slice(2);
+    if (args.includes("--schema")) {
+        process.stdout.write(await readFile(new URL("../schemas/plan.schema.json", import.meta.url), "utf8"));
+        return;
+    }
     if (args.includes("--help")) {
         usage();
         return;
@@ -121,8 +125,10 @@ async function main() {
         !("commands" in plan) ||
         !Array.isArray(plan.commands))
         return invalid("$.commands");
+    if ("$schema" in plan && typeof plan.$schema !== "string")
+        return invalid("$.$schema");
     for (const key of Object.keys(plan)) {
-        if (key !== "commands")
+        if (key !== "commands" && key !== "$schema")
             return invalid(`$.${key}`);
     }
     for (let index = 0; index < plan.commands.length; index += 1) {
@@ -322,7 +328,9 @@ async function main() {
         const completed = await Promise.all(pipeline.map(({ status }) => status));
         results.push(...completed);
         const failed = pipefail ? completed : completed.slice(-1);
-        if (failed.some(({ timedOut, code, signal, pipeWriteFailed }) => timedOut || ((code !== 0 || signal) && !pipeWriteFailed)))
+        if (failed.some(({ timedOut, code, signal, pipeClosed, pipeWriteFailed }) => timedOut ||
+            ((code !== 0 || signal) &&
+                !(pipeClosed && (pipeWriteFailed || signal === "SIGPIPE")))))
             process.exitCode = 1;
         index += 1;
     }

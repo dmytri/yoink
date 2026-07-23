@@ -21,6 +21,9 @@
   },
   "keywords": [],
   "type": "module",
+  "exports": {
+    "./plan.schema.json": "./schemas/plan.schema.json"
+  },
   "bin": {
     "yoink": "dist/cli.js"
   },

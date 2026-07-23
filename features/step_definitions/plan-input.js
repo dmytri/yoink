@@ -135,6 +135,15 @@ Given("a valid retrieval plan", function () {
   this.validPlan = { commands: [{ label: "retrieval", run: "printf retrieved" }] };
 });
 
+Given("a plan file contains schema metadata and one retrieval command", async function () {
+  this.directory = await mkdtemp(join(tmpdir(), "yoink-schema-metadata-"));
+  this.argument = "plan.json";
+  this.plan = JSON.stringify({
+    $schema: "https://github.com/dmytri/yoink/schemas/plan.schema.json",
+    commands: [{ label: "retrieval", run: "printf retrieved" }],
+  });
+});
+
 When("the plan is checked against {string}", function (schemaPath) {
   const schema = JSON.parse(readFileSync(join(process.cwd(), schemaPath), "utf8"));
   const validate = new Ajv2020().compile(schema);
@@ -262,6 +271,16 @@ Given("the caller provides {string}", async function (flag) {
 
 Then("Yoink prints the usage text from {string}", function (asset) {
   assert.equal(this.result.stdout.toString(), readFileSync(join(process.cwd(), asset), "utf8"));
+});
+
+Then("Yoink prints the plan schema from {string}", function (schemaPath) {
+  assert.equal(this.result.status, 0);
+  assert.equal(this.result.stdout.toString(), readFileSync(join(process.cwd(), schemaPath), "utf8"));
+});
+
+Then("Yoink executes the retrieval command from the plan", function () {
+  assert.equal(this.result.status, 0);
+  assert.match(this.result.stdout.toString(), /retrieved/);
 });
 
 Then("Yoink prints the package version and exits successfully", function () {

@@ -30,6 +30,17 @@ Feature: Retrieval plan input
     When the caller runs Yoink
     Then Yoink prints the package version and exits successfully
 
+  Scenario: Schema flag prints the plan schema
+    Given the caller provides "--schema"
+    When the caller runs Yoink
+    Then Yoink prints the plan schema from "schemas/plan.schema.json"
+    And Yoink exits successfully
+
+  Scenario: A plan accepts schema metadata
+    Given a plan file contains schema metadata and one retrieval command
+    When the caller runs Yoink with the plan
+    Then Yoink executes the retrieval command from the plan
+
   Scenario: A missing plan file prints a diagnostic
     Given a plan file is missing
     When the caller runs Yoink with the plan

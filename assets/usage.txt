@@ -1,6 +1,7 @@
-usage: yoink [--pipefail|--no-pipefail] [--max-bytes <n>] <plan>
+usage: yoink [--schema|--pipefail|--no-pipefail] [--max-bytes <n>] <plan>
 
 A plan is a JSON file or stdin stream with a "commands" array.
+Use --schema to print the plan JSON Schema.
 Each command needs "label" and "run". Optional fields:
   cwd       working directory (relative to Yoink's CWD)
   timeout   seconds before the command is killed (default: 1)

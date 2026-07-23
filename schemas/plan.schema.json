@@ -7,6 +7,9 @@
   "additionalProperties": false,
   "required": ["commands"],
   "properties": {
+    "$schema": {
+      "type": "string"
+    },
     "commands": {
       "type": "array",
       "items": {
