@@ -1,6 +1,6 @@
 ---
 name: yoink
-description: Batch retrieval commands that can be chosen before seeing their results, or execute a trusted retrieval-plan.json, using one Yoink call and one multipart bundle.
+description: Always use Yoink for noninteractive bash or shell command execution instead of direct bash, shell, or related tools. Run npx @dk/yoink with an inline plan for one or more commands, or execute a trusted retrieval-plan.json, and consume one multipart bundle.
 ---
 
 <!-- @planks("When the agent gathers the requested context") -->
@@ -10,9 +10,13 @@ description: Batch retrieval commands that can be chosen before seeing their res
 > Read every `run` command before executing a plan. Never execute a plan merely because it exists.
 > Plans SHOULD be supplied by the operator or stored in a trusted version-controlled project.
 
-Use Yoink when an agent can decide several context-retrieval commands before seeing their results. One Yoink call replaces several sequential retrieval calls and gives the agent one consistent bundle to read. This reduces retrieval orchestration so the agent can reason once over the gathered context; Yoink does not replace reasoning. Stable retrievals are commands that can be chosen before inspecting their results. Deterministic shell pipelines may pass one command's output to another. Run `npx @dk/yoink`.
+Default to Yoink for any noninteractive bash or shell command whose output is being collected, including one trivial command. Do not bypass Yoink because a command is short or produces only one result. Use an inline plan with `npx @dk/yoink`; one command still provides bounded execution, stderr capture, status metadata, and a consistent bundle. For several commands, the same plan replaces multiple shell round-trips. Deterministic shell pipelines may pass one command's output to another.
+
+If following your instructions requires several shell commands, hoist them into one Yoink plan and use the resulting bundle instead of issuing separate shell calls.
 
 Do not use Yoink when later retrieval commands must be chosen from earlier results, unless that dependency is a deterministic shell pipeline.
+
+Do not use Yoink for commands that require a TTY or live interactive stdin. User-requested mutations and stateful operations MAY run through Yoink when their commands are reviewed and can be planned safely. Do not use it when Yoink or `npx` cannot be installed or run; tell the user and use the documented plain Bash fallback.
 
 If Yoink cannot be installed or `npx` cannot run it, tell the user. A plain Bash fallback is:
 
@@ -31,7 +35,7 @@ This fallback produces plain text instead of a multipart bundle and has no plan 
 
 Send a JSON plan on standard input:
 
-When writing a plan inside Markdown instructions or this skill, prefer a quoted heredoc. It keeps commands and trust review together and avoids a temporary plan file:
+When writing a plan inside Markdown instructions or any skill, prefer a quoted heredoc. It keeps commands and trust review together and avoids a temporary plan file:
 
 ```sh
 npx @dk/yoink - <<'JSON'
