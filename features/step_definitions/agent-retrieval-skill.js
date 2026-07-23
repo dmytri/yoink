@@ -151,17 +151,22 @@ Given("the baseline agent runs {string} with isolated XDG directories", async fu
 });
 
 Given("the baseline agent receives its API key and model from Yoink's {string} file", async function (file) {
-  const environment = await readFile(join(root, file), "utf8");
+  let environment = "";
+  try {
+    environment = await readFile(join(root, file), "utf8");
+  } catch (error) {
+    if (error.code !== "ENOENT") throw error;
+  }
   const values = Object.fromEntries(
     environment.split("\n").flatMap((line) => {
       const match = line.match(/^([A-Z0-9_]+)=(.*)$/);
       return match ? [[match[1], match[2]]] : [];
     }),
   );
-  assert.ok(values.HARNESS_OPENROUTER_API_KEY, "HARNESS_OPENROUTER_API_KEY is required");
-  assert.ok(values.HARNESS_EVAL_MODEL, "HARNESS_EVAL_MODEL is required");
-  this.apiKey = values.HARNESS_OPENROUTER_API_KEY;
-  this.model = values.HARNESS_EVAL_MODEL;
+  this.apiKey = process.env.HARNESS_OPENROUTER_API_KEY ?? values.HARNESS_OPENROUTER_API_KEY;
+  this.model = process.env.HARNESS_EVAL_MODEL ?? values.HARNESS_EVAL_MODEL;
+  assert.ok(this.apiKey, "HARNESS_OPENROUTER_API_KEY is required");
+  assert.ok(this.model, "HARNESS_EVAL_MODEL is required");
 });
 
 Given("the baseline agent starts Pi with the configured OpenRouter provider, task prompt, and session directory", async function () {
