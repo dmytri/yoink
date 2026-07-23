@@ -26,6 +26,8 @@ Install globally to use `yoink`, or run it without installation as `npx @dk/yoin
 
 ## Quick start
 
+> **Trust warning:** Yoink executes each `run` value through a POSIX shell. Review plans before running them.
+
 ```sh
 yoink <<'JSON'
 {
@@ -40,8 +42,6 @@ JSON
 Yoink runs both retrievals and writes one labelled multipart MIME bundle to standard output.
 
 ## Plans
-
-> **Trust warning:** Every `run` value is executed as supplied by a POSIX shell. Review plans before running them. Yoink provides no sandboxing.
 
 A plan is a JSON object with an ordered `commands` array. Each command is an object with these fields:
 
