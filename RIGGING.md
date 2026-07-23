@@ -10,7 +10,7 @@
 - specs: features
 - verification: features/step_definitions
 - assets: assets
-- scantlings: scantlings
+- scantlings: schemas
 
 ## Commands
 - discover: `npx cucumber-js --dry-run --tags "not @captain and not @shipwright"`

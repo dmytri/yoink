@@ -92,13 +92,13 @@ Feature: Retrieval plan input
   @contract
   Scenario: A retrieval plan conforms to the plan schema
     Given a valid retrieval plan
-    When the plan is checked against "scantlings/plan.schema.json"
+    When the plan is checked against "schemas/plan.schema.json"
     Then the plan conforms to the schema
 
   @contract
   Scenario: A structurally invalid retrieval plan fails the plan schema
     Given a structurally invalid retrieval plan
-    When the plan is checked against "scantlings/plan.schema.json"
+    When the plan is checked against "schemas/plan.schema.json"
     Then the plan does not conform to the schema
 
   Scenario: Malformed plan input is rejected

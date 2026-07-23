@@ -6,7 +6,7 @@
     "dist",
     "README.md",
     "skills/yoink",
-    "scantlings"
+    "schemas"
   ],
   "scripts": {
     "pretest": "npm run build",
