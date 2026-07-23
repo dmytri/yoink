@@ -23,3 +23,7 @@ No voyage work: no `child.on("error")` handler; `realpath(cwd)` after close can 
 ## Eval State
 
 - All @eval scenarios use Pi with `-p`, `--provider openrouter`, `--model`, `--skill`, `--session-dir`, `stdio: ['ignore', 'pipe', 'pipe']` in the harness. Resolved.
+
+## Process Note
+
+- The `tests:all` `.env` sourcing issue is package-script tooling, not product work or a QM-owned asset change. A cancelled QM dispatch was wrong because Captain conflated that script defect with the separate pipe-closure verification blocker. Keep Captain-owned assets and package-script decisions on Captain's side; dispatch QM only for verification support.
