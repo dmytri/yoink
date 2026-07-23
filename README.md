@@ -95,7 +95,11 @@ JSON
 
 Use a plan file when the plan is reused, large, editor-validated with `$schema`, or needs to persist as a repository artifact.
 
+Yoink still parses the JSON after the heredoc reaches it. Escape backslashes for JSON string values, even with a quoted heredoc. For example, write `\\K` in JSON when the command must receive `\K`.
+
 By default (`--pipefail`), Yoink exits non-zero if any piped producer fails. Use `--no-pipefail` to accept a failed piped producer when the consumer succeeds.
+
+Commands execute serially in array order. A plan-level pipe connects one command to the next command's stdin; it does not make unrelated commands concurrent.
 
 ## Piping
 

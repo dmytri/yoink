@@ -52,6 +52,8 @@ JSON
 
 Use a supplied plan file instead when the plan is reused, large, editor-validated with `$schema`, or intended to persist as a repository artifact.
 
+Quoted heredocs prevent shell expansion but do not bypass Yoink's JSON parsing. Escape backslashes inside JSON string values. For example, write `\\K` in JSON when the command must receive `\K`.
+
 When a piped command's stdout streams into the next command, set `"capture": true` to also include that output in the bundle.
 
 ## Supplied plan file
@@ -80,6 +82,8 @@ Capture is also intentional: standalone commands default to `capture: true`, whi
 ## Piping guidance
 
 Use `pipe` when a later command needs earlier output as input. The piped command's stdout is excluded from the bundle by default. Set `"capture": true` to keep it in the bundle (e.g., when the piped file listing also carries needed evidence).
+
+Commands execute serially in array order. A plan-level pipe connects adjacent commands through stdin and stdout; unrelated commands are not concurrent.
 
 ## Choosing command boundaries
 
