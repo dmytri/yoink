@@ -72,6 +72,13 @@ Feature: Retrieval plan input
     Then Yoink exits with a non-zero status
     And the producer result records both an intentional pipe-close status and a timeout
 
+  Scenario: Pipefail reports a producer failure after the consumer closes
+    Given a producer emits one line and fails after the consumer closes
+    And the consumer exits after reading one line
+    When the caller runs Yoink with "--pipefail"
+    Then Yoink exits with a non-zero status
+    And the producer result records a non-timeout failure after pipe closure
+
   Scenario: Pipefail reports a failed piped producer
     Given a root command collection has a failing piped producer and a successful consumer
     When the caller runs Yoink with "--pipefail"
@@ -87,6 +94,12 @@ Feature: Retrieval plan input
     Given a valid retrieval plan
     When the plan is checked against "scantlings/plan.schema.json"
     Then the plan conforms to the schema
+
+  @contract
+  Scenario: A structurally invalid retrieval plan fails the plan schema
+    Given a structurally invalid retrieval plan
+    When the plan is checked against "scantlings/plan.schema.json"
+    Then the plan does not conform to the schema
 
   Scenario: Malformed plan input is rejected
     Given a plan file contains malformed JSON

@@ -84,6 +84,12 @@ Given("a producer emits one line and remains active until its timeout", async fu
   this.commands = [{ label: "producer", run: "printf 'producer\\n'; sleep 2", pipe: true, timeout: 1 }];
 });
 
+Given("a producer emits one line and fails after the consumer closes", async function () {
+  this.pipefail = true;
+  this.directory = await mkdtemp(join(tmpdir(), "yoink-pipefail-failure-"));
+  this.commands = [{ label: "producer", run: "printf 'producer\\n'; sleep 0.2; false", pipe: true, timeout: 1 }];
+});
+
 Given("the consumer exits after reading one line", async function () {
   this.expectedConsumerLabel = "consumer";
   this.commands.push({ label: "consumer", run: "head -n 1 >/dev/null" });
@@ -132,12 +138,23 @@ Given("a valid retrieval plan", function () {
 When("the plan is checked against {string}", function (schemaPath) {
   const schema = JSON.parse(readFileSync(join(process.cwd(), schemaPath), "utf8"));
   const validate = new Ajv2020().compile(schema);
-  this.planConforms = validate(this.validPlan);
+  this.planConforms = validate(this.invalidPlan ?? this.validPlan);
   this.planValidationErrors = validate.errors;
 });
 
 Then("the plan conforms to the schema", function () {
   assert.equal(this.planConforms, true, JSON.stringify(this.planValidationErrors));
+});
+
+Given("a structurally invalid retrieval plan", function () {
+  this.invalidPlan = {
+    commands: [{ label: "retrieval", run: "printf retrieved", unexpected: true }],
+  };
+});
+
+Then("the plan does not conform to the schema", function () {
+  assert.equal(this.planConforms, false, "invalid plan was accepted");
+  assert.ok(this.planValidationErrors?.length);
 });
 
 Given(/a plan whose (.+) is invalid/, async function (invalidValue) {
@@ -320,4 +337,15 @@ Then("the producer result records both an intentional pipe-close status and a ti
   assert.ok(producer);
   assert.equal(producer.timedOut, true);
   assert.equal(producer.pipeClosed, true);
+});
+
+Then("the producer result records a non-timeout failure after pipe closure", function () {
+  const metadata = [...this.result.stdout.toString().matchAll(
+    /Content-Disposition: form-data; name="metadata"\r\n\r\n(\{.*?\})\r\n--/g,
+  )].map((match) => JSON.parse(match[1]));
+  const producer = metadata.find((entry) => entry.label === "producer");
+  assert.ok(producer);
+  assert.equal(producer.timedOut, false);
+  assert.equal(producer.pipeClosed, true);
+  assert.notEqual(producer.exitCode, 0);
 });

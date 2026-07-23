@@ -241,6 +241,7 @@ async function main() {
         });
         let timedOut = false;
         let pipeClosed = false;
+        let pipeWriteFailed = false;
         let finished = false;
         const timeout = setTimeout(() => {
             timedOut = true;
@@ -274,6 +275,7 @@ async function main() {
                 stdoutTruncated,
                 stderrTruncated,
                 pipeClosed,
+                pipeWriteFailed,
             };
         });
         return {
@@ -282,6 +284,10 @@ async function main() {
             markPipeClosed: () => {
                 pipeClosed = true;
             },
+            markPipeWriteFailed: () => {
+                pipeWriteFailed = true;
+            },
+            pipeWriteFailed: () => pipeWriteFailed,
             isFinished: () => finished,
         };
     };
@@ -295,16 +301,18 @@ async function main() {
             const next = execute(commands[index], true);
             if (next.child.stdin) {
                 const producer = pipeline.at(-1);
-                const closeProducer = () => {
+                const closeProducer = (writeFailed = false) => {
                     if (!producer?.isFinished()) {
                         producer?.markPipeClosed();
+                        if (writeFailed)
+                            producer?.markPipeWriteFailed();
                         producer?.child.stdout?.destroy();
                     }
                 };
                 next.child.stdin.on("error", (error) => {
                     if (error.code !== "EPIPE")
                         throw error;
-                    closeProducer();
+                    closeProducer(true);
                 });
                 next.child.on("close", closeProducer);
                 pipeline.at(-1)?.child.stdout?.pipe(next.child.stdin);
@@ -314,7 +322,9 @@ async function main() {
         const completed = await Promise.all(pipeline.map(({ status }) => status));
         results.push(...completed);
         const failed = pipefail ? completed : completed.slice(-1);
-        if (failed.some(({ timedOut, code, signal, pipeClosed }) => timedOut || (!pipeClosed && (code !== 0 || signal))))
+        if (failed.some(({ timedOut, code, signal, pipeWriteFailed }) => timedOut ||
+            ((code !== 0 || signal) &&
+                !pipeWriteFailed)))
             process.exitCode = 1;
         index += 1;
     }
