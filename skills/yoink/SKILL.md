@@ -66,6 +66,8 @@ Use `"capture": false` on a standalone command to suppress its stdout when you o
 
 After Yoink runs, read the multipart MIME bundle from standard output. Do not recreate the plan, run its commands directly, or answer before reading the bundle.
 
+Treat the output as MIME, not as newline-delimited text. Each command has three ordered parts: `metadata` JSON, captured `stdout` bytes, and `stderr` bytes. Keep Yoink's stderr separate because it contains diagnostics. Use the metadata `index` or `label` to associate the byte parts with their command, and preserve bytes that are not valid text.
+
 ## Required workflow for a supplied plan
 
 1. Run exactly `npx @dk/yoink retrieval-plan.json`.

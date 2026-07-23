@@ -121,6 +121,39 @@ Yoink always emits the complete bundle, even after a command failure or timeout.
 
 Yoink writes a multipart MIME bundle to standard output. Each command result appears as three parts: JSON metadata (`index`, `label`, `command`, `cwd`, `exitCode`, `signal`, `durationMs`, `timeoutSeconds`, `timedOut`, `stdout_truncated`, `stderr_truncated`), stdout bytes, and stderr bytes. Stream bytes are preserved verbatim.
 
+## Consuming the bundle
+
+Redirect standard output to a file when another process or agent will parse the result. Keep standard error separate because it contains Yoink diagnostics:
+
+```sh
+yoink plan.json > bundle.eml 2> yoink-errors.log
+```
+
+Parse the output as MIME. Do not split it on the boundary string or decode the body as text. Each command contributes three parts in order:
+
+1. `metadata` contains one JSON object that identifies the command and its status.
+2. `stdout` contains the command's captured bytes.
+3. `stderr` contains the command's error bytes.
+
+For example, Python's standard MIME parser exposes each part without changing binary content:
+
+```python
+from email import policy
+from email.parser import BytesParser
+
+with open("bundle.eml", "rb") as stream:
+    bundle = BytesParser(policy=policy.default).parse(stream)
+
+for part in bundle.walk():
+    if part.get_content_maintype() == "multipart":
+        continue
+    name = part.get_param("name", header="content-disposition")
+    body = part.get_payload(decode=True)
+    print(name, len(body or b""))
+```
+
+Use the metadata `index` or `label` to associate each stdout and stderr part with its command. A failed command still has a result in the bundle; use its metadata status fields and Yoink's process exit code to decide whether the retrieval succeeded.
+
 ## Agent Skills
 
 Install the Yoink skill for agent use:
