@@ -22,9 +22,30 @@ npm install --global @dk/yoink
 
 Yoink requires Node.js 22 or later and a POSIX shell.
 
+Install globally to use `yoink`, or run it without installation as `npx @dk/yoink`.
+
+## Quick start
+
+```sh
+yoink <<'JSON'
+{
+  "commands": [
+    {"label":"Instructions","run":"cat -- AGENTS.md"},
+    {"label":"Source files","run":"rg --files src"}
+  ]
+}
+JSON
+```
+
+Yoink runs both retrievals and writes one labelled multipart MIME bundle to standard output.
+
 ## Plans
 
+> **Trust warning:** Every `run` value is executed as supplied by a POSIX shell. Review plans before running them. Yoink provides no sandboxing.
+
 A plan is a JSON object with an ordered `commands` array. Each command is an object with these fields:
+
+Yoink is for retrievals that can be selected in advance, not investigations where each next command depends on interpreting the previous result. Use a deterministic shell pipeline when that dependency can be expressed inside the plan.
 
 For editor validation and completion, add the published Yoink schema:
 
@@ -48,20 +69,12 @@ The schema describes structural validation. Yoink additionally checks filesystem
 
 The default command timeout is 1 second. Set `timeout` explicitly for commands that may take longer. Prefer a bounded value such as `5` or `10` seconds over relying on the default.
 
-Use `--max-bytes <n>` to limit each command's captured stdout and stderr stream independently. It is not a total bundle-size limit. Prefer limiting output at the source with focused patterns or `head`; Yoink records stdout and stderr truncation in result metadata.
-
-```sh
-npx @dk/yoink --max-bytes 100000 - <<'JSON'
-{"commands":[{"label":"Instructions","run":"cat -- AGENTS.md"}]}
-JSON
-```
-
 ```json
 {
   "commands": [
     {
-      "label": "Agent instructions",
-      "run": "cat -- AGENTS.md",
+      "label": "Source paths",
+      "run": "rg --files src",
       "pipe": true
     },
     {
@@ -137,6 +150,14 @@ By default, a piped command's stdout is **omitted** from the output bundle — i
 Without `capture: true`, the first command's stdout still feeds the second command's stdin, but the bundle only contains the second command's stdout.
 
 Capture choices affect bundle size. Yoink includes metadata, stdout bytes, and stderr bytes for every command. Use `capture: false` when a command's stdout is noisy or only its status matters. A piped command defaults to `capture: false`; a standalone command defaults to `capture: true`.
+
+Use `--max-bytes <n>` to limit each command's captured stdout and stderr stream independently. It is not a total bundle-size limit. Prefer limiting output at the source with focused patterns or `head`; Yoink records stdout and stderr truncation in result metadata.
+
+```sh
+npx @dk/yoink --max-bytes 100000 - <<'JSON'
+{"commands":[{"label":"Instructions","run":"cat -- AGENTS.md"}]}
+JSON
+```
 
 ## Choosing command boundaries
 
@@ -269,6 +290,10 @@ This fallback produces plain text, not Yoink's multipart bundle, and does not pr
 ## Security
 
 Plans are trusted shell code executed by a POSIX shell. Yoink runs each `run` value as supplied. Review plans before running them. Yoink provides no sandboxing and does not support interactive terminal programs.
+
+## License
+
+Yoink is released under the [0BSD license](LICENSE).
 
 ## Built with Shipshape
 
