@@ -11,7 +11,7 @@
   "scripts": {
     "pretest": "npm run build",
     "test": "cucumber-js --tags '@logic and not @captain and not @shipwright'",
-    "tests:all": "npm test && (set -a; [ ! -f ./.env ] || . ./.env; set +a; OPENROUTER_API_KEY=\"${OPENROUTER_API_KEY:-$HARNESS_OPENROUTER_API_KEY}\" npx cucumber-js --tags '@eval and not @captain and not @shipwright')",
+    "tests:all": "npm test && (set -a; [ ! -f ./.env ] || . ./.env; set +a; npx cucumber-js --tags '@eval and not @captain and not @shipwright')",
     "typecheck": "npm run codegen && tsc src/cli.ts --noEmit --target ES2022 --module NodeNext --moduleResolution NodeNext --types node",
     "lint": "gplint && biome check src",
     "verify": "npm run typecheck && npm run lint && npm test",
