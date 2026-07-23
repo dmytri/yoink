@@ -29,6 +29,8 @@ This fallback produces plain text instead of a multipart bundle and has no plan 
 
 Send a JSON plan on standard input:
 
+When writing a plan inside Markdown instructions or this skill, prefer a quoted heredoc. It keeps commands and trust review together and avoids a temporary plan file:
+
 ```sh
 npx @dk/yoink - <<'JSON'
 {
@@ -47,6 +49,8 @@ npx @dk/yoink - <<'JSON'
 }
 JSON
 ```
+
+Use a supplied plan file instead when the plan is reused, large, editor-validated with `$schema`, or intended to persist as a repository artifact.
 
 When a piped command's stdout streams into the next command, set `"capture": true` to also include that output in the bundle.
 
@@ -69,9 +73,27 @@ Give every requested command one `commands` entry with a concise `label` and its
 - `pipe` — send stdout to next command's stdin
 - `capture` — include stdout in the bundle. Default: `true` unless `pipe` is `true`. Set `false` to suppress output when only side effects matter
 
+The default timeout is 1 second. Set `timeout` explicitly for commands that may take longer, commonly `5` or `10` seconds. Do not rely on the default for network, package-manager, or other variable-latency commands.
+
+Capture is also intentional: standalone commands default to `capture: true`, while piped commands default to `capture: false`. Use `capture: false` for noisy output when only command metadata matters, and use `capture: true` on a piped command when its output must also remain in the bundle. Every command contributes `metadata`, `stdout`, and `stderr` MIME parts, so bundle size grows with captured output.
+
 ## Piping guidance
 
 Use `pipe` when a later command needs earlier output as input. The piped command's stdout is excluded from the bundle by default. Set `"capture": true` to keep it in the bundle (e.g., when the piped file listing also carries needed evidence).
+
+## Choosing command boundaries
+
+Use a new plan command when an operation needs its own label, metadata, timeout, captured output, or failure status. Use shell operators inside `run` when operations form one atomic result.
+
+- Use plan-level `"pipe": true` when a later command consumes earlier stdout and both results need separate observability or pipefail handling.
+- Use shell `|` for a small private transformation where only final output matters.
+- Use `&&` when setup and the following operation must succeed as one result.
+- Use separate commands for independent retrievals or separate diagnostics.
+- Use `;` sparingly because it can hide an earlier failure behind the final command's status.
+- Use `||` only for one logical fallback.
+- Avoid `&`; background processes can outlive the command, race with later steps, leak resources, and produce incomplete output.
+
+Plan-level pipes connect stdout to stdin. They do not turn output into arguments automatically. Use a consumer such as `xargs` when a pipeline's data must become arguments.
 
 Use `"capture": false` on a standalone command to suppress its stdout when you only want its side effects (e.g. writing a file, seeding state).
 
@@ -80,6 +102,8 @@ Use `"capture": false` on a standalone command to suppress its stdout when you o
 After Yoink runs, read the multipart MIME bundle from standard output. Do not recreate the plan, run its commands directly, or answer before reading the bundle.
 
 Treat the output as MIME, not as newline-delimited text. Each command has three ordered parts: `metadata` JSON, captured `stdout` bytes, and `stderr` bytes. Keep Yoink's stderr separate because it contains diagnostics. Use the metadata `index` or `label` to associate the byte parts with their command, and preserve bytes that are not valid text.
+
+Programmatic consumers can identify parts through `Content-Disposition: form-data; name="metadata"`, `name="stdout"`, and `name="stderr"`. Parse `metadata` as JSON and leave stdout and stderr as bytes until their encoding is known.
 
 ## Required workflow for a supplied plan
 

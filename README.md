@@ -46,6 +46,8 @@ The schema describes structural validation. Yoink additionally checks filesystem
 | `pipe` | no | boolean | Pipe this command's stdout to the next command's stdin |
 | `capture` | no | boolean | Include stdout in the bundle. Default: `true` unless `pipe` is `true`. Set `false` to suppress output when only side effects matter |
 
+The default command timeout is 1 second. Set `timeout` explicitly for commands that may take longer. Prefer a bounded value such as `5` or `10` seconds over relying on the default.
+
 ```json
 {
   "commands": [
@@ -78,6 +80,21 @@ yoink <<'JSON'
 JSON
 ```
 
+When a plan is shown inside Markdown instructions or an agent skill, prefer a quoted heredoc. It keeps the plan, commands, and trust review together without requiring a temporary file:
+
+```sh
+npx @dk/yoink - <<'JSON'
+{
+  "commands": [
+    {"label":"Instructions","run":"cat -- AGENTS.md"},
+    {"label":"Source paths","run":"rg --files src"}
+  ]
+}
+JSON
+```
+
+Use a plan file when the plan is reused, large, editor-validated with `$schema`, or needs to persist as a repository artifact.
+
 By default (`--pipefail`), Yoink exits non-zero if any piped producer fails. Use `--no-pipefail` to accept a failed piped producer when the consumer succeeds.
 
 ## Piping
@@ -106,6 +123,38 @@ By default, a piped command's stdout is **omitted** from the output bundle — i
 ```
 
 Without `capture: true`, the first command's stdout still feeds the second command's stdin, but the bundle only contains the second command's stdout.
+
+Capture choices affect bundle size. Yoink includes metadata, stdout bytes, and stderr bytes for every command. Use `capture: false` when a command's stdout is noisy or only its status matters. A piped command defaults to `capture: false`; a standalone command defaults to `capture: true`.
+
+## Choosing command boundaries
+
+Use a new plan command when an operation deserves its own label, metadata, timeout, captured output, or failure status. Use shell operators inside `run` when several shell operations form one atomic result.
+
+- Use plan-level `"pipe": true` when a later command consumes earlier stdout and both results need separate observability or pipefail handling.
+- Use shell `|` for a small private transformation where only the final output matters. Internal stages then share one Yoink result.
+- Use `&&` when setup and the following operation must succeed as one result.
+- Use separate commands for independent retrievals or when each result needs its own timeout or diagnostics.
+- Use `;` sparingly because it continues after failure and reports only the final shell status.
+- Use `||` only for one logical fallback. Split it when primary and fallback results need separate visibility.
+- Avoid `&` in plans. Background processes can outlive the command, race with later steps, leak resources, and produce incomplete output.
+
+The plan-level pipe connects stdout to stdin. It does not turn output into command arguments automatically. Use a consumer such as `xargs` when data must become arguments:
+
+```json
+{
+  "commands": [
+    {
+      "label": "Changed files",
+      "run": "git diff --name-only -z",
+      "pipe": true
+    },
+    {
+      "label": "Changed TypeScript files",
+      "run": "xargs -0 -r rg -n 'TODO|FIXME'"
+    }
+  ]
+}
+```
 
 ## Exit status
 
@@ -155,6 +204,8 @@ for part in bundle.walk():
 ```
 
 Use the metadata `index` or `label` to associate each stdout and stderr part with its command. A failed command still has a result in the bundle; use its metadata status fields and Yoink's process exit code to decide whether the retrieval succeeded.
+
+For programmatic parsing, inspect each MIME part's `Content-Disposition` header. The `name` values are `metadata`, `stdout`, and `stderr`, repeated in that order for each command. Read `metadata` as JSON and keep `stdout` and `stderr` as bytes until the consumer knows they are text.
 
 ## Agent Skills
 
