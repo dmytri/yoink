@@ -30,6 +30,7 @@ type Result = {
 };
 
 const MAX_TIMEOUT_MILLISECONDS = 2_147_483_647;
+const PIPE_CLOSE_GRACE_MILLISECONDS = 50;
 
 /** @planks("Yoink exits with a non-zero status") */
 function invalid(path: string) {
@@ -364,7 +365,10 @@ async function main() {
 					if (!producer?.isFinished()) {
 						producer?.markPipeClosed();
 						if (writeFailed) producer?.markPipeWriteFailed();
-						producer?.child.stdout?.destroy();
+						setTimeout(
+							() => producer?.child.stdout?.destroy(),
+							PIPE_CLOSE_GRACE_MILLISECONDS,
+						);
 					}
 				};
 				next.child.stdin.on("error", (error: NodeJS.ErrnoException) => {

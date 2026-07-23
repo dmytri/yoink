@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import { readFile, realpath, stat } from "node:fs/promises";
 import usageText from "./usage-text.js";
 const MAX_TIMEOUT_MILLISECONDS = 2_147_483_647;
+const PIPE_CLOSE_GRACE_MILLISECONDS = 50;
 /** @planks("Yoink exits with a non-zero status") */
 function invalid(path) {
     process.stderr.write(`${path} is invalid\n`);
@@ -312,7 +313,7 @@ async function main() {
                         producer?.markPipeClosed();
                         if (writeFailed)
                             producer?.markPipeWriteFailed();
-                        producer?.child.stdout?.destroy();
+                        setTimeout(() => producer?.child.stdout?.destroy(), PIPE_CLOSE_GRACE_MILLISECONDS);
                     }
                 };
                 next.child.stdin.on("error", (error) => {
