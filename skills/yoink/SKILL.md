@@ -1,6 +1,6 @@
 ---
 name: yoink
-description: Replace several stable context-retrieval calls with one Yoink tool call and one multipart bundle.
+description: Batch retrieval commands that can be chosen before seeing their results, or execute a trusted retrieval-plan.json, using one Yoink call and one multipart bundle.
 ---
 
 <!-- @planks("When the agent gathers the requested context") -->
@@ -11,6 +11,8 @@ description: Replace several stable context-retrieval calls with one Yoink tool 
 > Plans SHOULD be supplied by the operator or stored in a trusted version-controlled project.
 
 Use Yoink when an agent can decide several context-retrieval commands before seeing their results. One Yoink call replaces several sequential retrieval calls and gives the agent one consistent bundle to read. This reduces retrieval orchestration so the agent can reason once over the gathered context; Yoink does not replace reasoning. Stable retrievals are commands that can be chosen before inspecting their results. Deterministic shell pipelines may pass one command's output to another. Run `npx @dk/yoink`.
+
+Do not use Yoink when later retrieval commands must be chosen from earlier results, unless that dependency is a deterministic shell pipeline.
 
 If Yoink cannot be installed or `npx` cannot run it, tell the user. A plain Bash fallback is:
 
@@ -76,6 +78,8 @@ Give every requested command one `commands` entry with a concise `label` and its
 - `capture` — include stdout in the bundle. Default: `true` unless `pipe` is `true`. Set `false` to suppress output when only side effects matter
 
 The default timeout is 1 second. Set `timeout` explicitly for commands that may take longer, commonly `5` or `10` seconds. Do not rely on the default for network, package-manager, or other variable-latency commands.
+
+Limit output at the source when possible, for example with focused search patterns or `head`. Use `--max-bytes <n>` as a safety bound when retrievals may still produce large output. Truncation is reported in result metadata.
 
 Capture is also intentional: standalone commands default to `capture: true`, while piped commands default to `capture: false`. Use `capture: false` for noisy output when only command metadata matters, and use `capture: true` on a piped command when its output must also remain in the bundle. Every command contributes `metadata`, `stdout`, and `stderr` MIME parts, so bundle size grows with captured output.
 
