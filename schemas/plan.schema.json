@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/dmytri/yoink/schemas/plan.schema.json",
+  "$id": "https://unpkg.com/@dk/yoink@0.1/plan.schema.json",
   "title": "Yoink retrieval plan",
   "description": "Structural plan shape. Runtime validation additionally checks cwd and final-command pipe placement.",
   "type": "object",

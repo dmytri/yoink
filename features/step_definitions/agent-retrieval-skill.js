@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
-import { cp, mkdir, mkdtemp, readdir, readFile, writeFile } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { execFile, spawn } from "node:child_process";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { promisify } from "node:util";
-import { Before, Given, When, Then } from "@cucumber/cucumber";
+import { After, Before, Given, When, Then } from "@cucumber/cucumber";
 
 const execFileAsync = promisify(execFile);
 const root = process.cwd();
@@ -98,6 +98,31 @@ Before(function ({ pickle }) {
   this.scenarioName = pickle.name;
   if (pickle.steps.some((step) => step.text === 'it writes Yoink\'s standard output bundle to "context.md"'))
     this.contextFile = "context.md";
+});
+
+After(async function () {
+  if (this.packageDirectory) await rm(this.packageDirectory, { recursive: true, force: true });
+});
+
+Given("the package is packed for publication", async function () {
+  this.packageDirectory = await mkdtemp(join(tmpdir(), "yoink-pack-"));
+  const { stdout } = await execFileAsync("npm", ["pack", "--json", "--pack-destination", this.packageDirectory], { cwd: root });
+  const result = JSON.parse(stdout);
+  const pack = Array.isArray(result) ? result[0] : Object.values(result)[0];
+  this.packageFiles = pack.files.map(({ path }) => path);
+});
+
+When("the package manifest is checked", async function () {
+  const packageJson = JSON.parse(await readFile(join(root, "package.json"), "utf8"));
+  this.packageExports = packageJson.exports;
+});
+
+Then("the package contains {string}", function (path) {
+  assert.ok(this.packageFiles.includes(path), `package does not contain ${path}`);
+});
+
+Then("the package exports {string} to {string}", function (entry, path) {
+  assert.equal(this.packageExports[entry], `./${path}`);
 });
 
 Given("a baseline agent has the Yoink skill from {string} in a temporary workspace", { timeout: 120000 }, async function (skill) {

@@ -112,6 +112,13 @@ Feature: Retrieval plan input
     When the plan is checked against "schemas/plan.schema.json"
     Then the plan does not conform to the schema
 
+  @contract
+  Scenario: The published package contains the public plan schema
+    Given the package is packed for publication
+    When the package manifest is checked
+    Then the package contains "schemas/plan.schema.json"
+    And the package exports "./plan.schema.json" to "schemas/plan.schema.json"
+
   Scenario: Malformed plan input is rejected
     Given a plan file contains malformed JSON
     When the caller runs Yoink with the plan

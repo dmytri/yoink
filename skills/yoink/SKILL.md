@@ -45,7 +45,7 @@ When a `retrieval-plan.json` file is already present, run it as the first retrie
 npx @dk/yoink retrieval-plan.json
 ```
 
-Plans MAY include `"$schema": "https://unpkg.com/@dk/yoink/plan.schema.json"` for editor validation and completion. Yoink also prints the installed schema with `yoink --schema`.
+Plans MAY include `"$schema": "https://unpkg.com/@dk/yoink@0.1/plan.schema.json"` for editor validation and completion. Yoink also prints the installed schema with `yoink --schema`.
 
 ## Writing commands
 
