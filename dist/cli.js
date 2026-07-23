@@ -322,9 +322,7 @@ async function main() {
         const completed = await Promise.all(pipeline.map(({ status }) => status));
         results.push(...completed);
         const failed = pipefail ? completed : completed.slice(-1);
-        if (failed.some(({ timedOut, code, signal, pipeWriteFailed }) => timedOut ||
-            ((code !== 0 || signal) &&
-                !pipeWriteFailed)))
+        if (failed.some(({ timedOut, code, signal, pipeWriteFailed }) => timedOut || ((code !== 0 || signal) && !pipeWriteFailed)))
             process.exitCode = 1;
         index += 1;
     }
