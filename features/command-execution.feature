@@ -86,6 +86,20 @@ Feature: Retrieval command execution
     When the caller runs Yoink with "--max-bytes 64" and the plan
     Then the command result metadata indicates stdout was truncated
 
+  Scenario: Truncated command metadata reports total bytes produced
+    Given a plan command exceeds "--max-bytes" on stdout and "--max-bytes" on stderr
+    When the caller runs Yoink with "--max-bytes 64" and the plan
+    Then the command result metadata indicates stdout was truncated
+    And the command result metadata indicates stderr was truncated
+    And the command result metadata includes "stdout_bytes"
+    And the command result metadata includes "stderr_bytes"
+
+  Scenario: A command that overflows is identifiable by total byte count
+    Given a plan command emits 8 bytes to stdout and 8 bytes to stderr
+    When the caller runs Yoink with "--max-bytes 64" and the plan
+    Then the command result metadata includes "stdout_bytes" set to 8
+    And the command result metadata includes "stderr_bytes" set to 8
+
   Scenario: Suppressed standard output is not held in memory
     Given a plan command writes 256 MiB to standard output with capture disabled
     When the caller runs Yoink with a constrained heap and the plan

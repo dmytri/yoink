@@ -395,6 +395,10 @@ async function main() {
 		index += 1;
 	}
 
+	/**
+	 * @planks("the command result metadata includes {string}")
+	 * @planks("the command result metadata includes {string} set to {int}")
+	 */
 	const metadata = (result: Result, index: number) =>
 		Buffer.from(
 			JSON.stringify({
@@ -409,6 +413,8 @@ async function main() {
 				timedOut: result.timedOut,
 				stdout_truncated: result.stdoutTruncated,
 				stderr_truncated: result.stderrTruncated,
+				stdout_bytes: result.stdout.length,
+				stderr_bytes: result.stderr.length,
 				pipeClosed: result.pipeClosed,
 			}),
 		);

@@ -126,6 +126,14 @@ Feature: Retrieval plan input
     And the diagnostic is a single line
     And Yoink exits with a non-zero status before executing a retrieval command
 
+  Scenario: JSON parse error diagnostic includes position
+    Given a plan file contains malformed JSON
+    When the caller runs Yoink with the plan
+    Then Yoink prints a compact diagnostic for invalid JSON to standard error
+    And the diagnostic includes a line number
+    And the diagnostic includes a column number
+    And Yoink exits with a non-zero status before executing a retrieval command
+
   Scenario Outline: An invalid plan identifies its invalid JSON path
     Given a plan whose <invalid value> is invalid
     When the caller runs Yoink with the plan

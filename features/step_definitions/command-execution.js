@@ -365,8 +365,51 @@ Then("the stderr body is exactly {int} bytes", function (expected) {
 	const m = output.match(
 		new RegExp(`name="stderr"\\r\\n\\r\\n(.+?)\\r\\n--${b}`, "s"),
 	);
-	assert.equal(m?.[1]?.length, expected);
+	assert.equal(m?.[1]?.length, expected	);
 });
+
+Given(
+	"a plan command exceeds {string} on stdout and {string} on stderr",
+	function (_flag, _flag2) {
+		setPlan(this, [
+			{
+				label: "verbose",
+				run: "printf 'abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'; printf 'abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789' >&2",
+			},
+		]);
+	},
+);
+
+Given(
+	"a plan command emits {int} bytes to stdout and {int} bytes to stderr",
+	function (stdoutBytes, stderrBytes) {
+		const stdoutStr = Array(stdoutBytes + 1).join("a");
+		const stderrStr = Array(stderrBytes + 1).join("b");
+		setPlan(this, [
+			{
+				label: "measured",
+				run: `printf '${stdoutStr}'; printf '${stderrStr}' >&2`,
+			},
+		]);
+	},
+);
+
+Then("the command result metadata includes {string}", function (field) {
+	assert.match(
+		this.result.stdout.toString(),
+		new RegExp(`"${field}":`),
+	);
+});
+
+Then(
+	"the command result metadata includes {string} set to {int}",
+	function (field, value) {
+		assert.match(
+			this.result.stdout.toString(),
+			new RegExp(`"${field}":${value}(?:,|\\s|})`),
+		);
+	},
+);
 
 Then("no child process remains running after Yoink exits", async function () {
 	const contents = await readFile(join(this.directory, this.pidFile), "utf8");

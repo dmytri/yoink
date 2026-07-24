@@ -310,6 +310,20 @@ Then("Yoink prints a compact diagnostic for invalid JSON to standard error", fun
   assert.match(this.result.stderr.toString(), /JSON|unexpected token|invalid|parse/i);
 });
 
+Then("the diagnostic includes a line number", function () {
+	assert.match(
+		this.result.stderr.toString(),
+		/(?:line|row|position)\s+\d+/i,
+	);
+});
+
+Then("the diagnostic includes a column number", function () {
+	assert.match(
+		this.result.stderr.toString(),
+		/(?:column|col|position)\s+\d+/i,
+	);
+});
+
 Then("the diagnostic is a single line", function () {
   const diagnostic = this.result.stderr.toString().trim();
   assert.notEqual(diagnostic.length, 0);
