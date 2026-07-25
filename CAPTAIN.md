@@ -6,11 +6,11 @@ Binding behaviour lives in `.feature` specs and referenced `assets/**`. History 
 
 ## Voyage State
 
-Closed. Harbour review disposals, usage-asset inlining, conformance checks, and eval harness fixes shipped in `0.1.8`. Eval resample green; the "variance" was an escape-blind harness assertion, fixed.
+Closed. Flag-based inline plan interface shipped in commit `1797df9`. All 9 scenarios green. Documentation updated (skill docs, README, usage text).
 
 ## Outbound
 
-`main` and tag `v0.1.8` are synced with `origin`. `@dk/yoink@0.1.8` is published. The working tree is clean.
+`main` at `1797df9`. Working tree clean.
 
 ## Conventions
 
