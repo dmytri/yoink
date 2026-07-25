@@ -33,7 +33,26 @@ This fallback produces plain text instead of a multipart bundle and has no plan 
 
 ## Inline plan
 
-Send a JSON plan on standard input:
+Two ways to specify an inline plan: flag-based (preferred for simple cases) or JSON heredoc (for complex plans).
+
+### Flag-based inline plan
+
+Use command-line flags to specify commands directly. This avoids JSON escaping and is more readable in Markdown:
+
+```sh
+npx @dk/yoink --run "rg --files src" --label "Source paths" --pipe --capture \
+  --run "sed 's/^/Piped path: /'" --label "Piped paths"
+```
+
+Global flags (`--max-bytes`, `--pipefail`, `--no-pipefail`) must come before the first `--run`. Command flags (`--label`, `--timeout`, `--cwd`, `--pipe`, `--capture`, `--no-capture`) apply to the most recent `--run`. Labels are optional; commands without labels get default names like `command-0`.
+
+Example with global flag:
+
+```sh
+npx @dk/yoink --max-bytes 100000 --run "cat AGENTS.md" --label "Instructions"
+```
+
+### JSON heredoc inline plan
 
 When writing a plan inside Markdown instructions or any skill, prefer a quoted heredoc. It keeps commands and trust review together and avoids a temporary plan file:
 

@@ -1,7 +1,21 @@
-usage: yoink [--schema|--pipefail|--no-pipefail] [--max-bytes <n>] <plan>
+usage: yoink [global-options] [--run <cmd> [cmd-options] ...] <plan>
+
+Global options (before first --run):
+  --schema              print the plan JSON Schema
+  --pipefail            exit non-zero if any piped producer fails (default)
+  --no-pipefail         accept failed piped producer when consumer succeeds
+  --max-bytes <n>       limit each command's captured stdout/stderr to n bytes
+
+Command flags (repeatable, apply to most recent --run):
+  --run <cmd>           add a command to the plan
+  --label <text>        label for the command (optional, default: command-N)
+  --timeout <seconds>   kill the command after N seconds (default: 1)
+  --cwd <path>          working directory (relative to Yoink's CWD)
+  --pipe                send stdout to the next command's stdin
+  --capture             include stdout in the bundle (overrides piped default)
+  --no-capture          suppress stdout (overrides standalone default)
 
 A plan is a JSON file or stdin stream with a "commands" array.
-Use --schema to print the plan JSON Schema.
 Each command needs "label" and "run". Optional fields:
   cwd       working directory (relative to Yoink's CWD)
   timeout   seconds before the command is killed (default: 1)
@@ -13,3 +27,7 @@ Examples:
   cat plan.json | yoink -
   yoink --pipefail plan.json
   yoink --no-pipefail plan.json
+  yoink --run "cat AGENTS.md" --label "Instructions"
+  yoink --run "rg --files src" --label "Source" --pipe \
+        --run "grep test" --label "Filter"
+  yoink --max-bytes 100000 --run "cat AGENTS.md" --label "Instructions"

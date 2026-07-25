@@ -50,6 +50,8 @@ function usage() {
  * @planks("the caller runs {string}")
  * @planks("the caller runs Yoink with the plan")
  * @planks("the caller runs Yoink")
+ * @planks("the caller runs Yoink via flags")
+ * @planks("the caller runs Yoink with the plan via flags")
  * @planks("the command prints its working directory")
  * @planks("Yoink receives a termination signal")
  * @planks("Yoink receives SIGINT")
@@ -62,6 +64,10 @@ function usage() {
  * @planks("the caller provides {string}")
  * @planks("Yoink prints a compact diagnostic for the missing file to standard error")
  * @planks("Yoink prints a compact diagnostic for invalid JSON to standard error")
+ * @planks("Yoink prints a diagnostic for the misplaced global flag to standard error")
+ * @planks("Yoink prints a diagnostic for the missing --run to standard error")
+ * @planks("Yoink prints a diagnostic for the empty command to standard error")
+ * @planks("Yoink prints a diagnostic for the mixed input modes to standard error")
  * @planks("the diagnostic is a single line")
  * @planks("Yoink emits the complete bundle")
  */
@@ -95,14 +101,115 @@ async function main() {
 	let maxBytes: number | undefined;
 	let maxBytesSet = false;
 	const filtered: string[] = [];
+	const flagCommands: Command[] = [];
+	let current: Command | null = null;
+	let globalOptionsClosed = false;
 
 	for (let i = 0; i < args.length; i++) {
 		const arg = args[i];
-		if (arg === "--pipefail") {
+		if (arg === "--run") {
+			i++;
+			if (i >= args.length || args[i] === "") {
+				process.stderr.write("--run requires a non-empty command\n");
+				process.exitCode = 1;
+				return;
+			}
+			globalOptionsClosed = true;
+			current = { label: `command-${flagCommands.length}`, run: args[i] };
+			flagCommands.push(current);
+		} else if (arg === "--label") {
+			if (!current) {
+				process.stderr.write("--label requires a preceding --run flag\n");
+				process.exitCode = 1;
+				return;
+			}
+			i++;
+			if (i >= args.length) {
+				process.stderr.write("--label requires a value\n");
+				process.exitCode = 1;
+				return;
+			}
+			current.label = args[i];
+		} else if (arg === "--timeout") {
+			if (!current) {
+				process.stderr.write("--timeout requires a preceding --run flag\n");
+				process.exitCode = 1;
+				return;
+			}
+			i++;
+			if (i >= args.length) {
+				process.stderr.write("--timeout requires a value\n");
+				process.exitCode = 1;
+				return;
+			}
+			const val = args[i];
+			const parsed = Number.parseInt(val, 10);
+			if (!/^[1-9][0-9]*$/.test(val) || !Number.isSafeInteger(parsed)) {
+				process.stderr.write(`--timeout: invalid value '${val}'\n`);
+				process.exitCode = 1;
+				return;
+			}
+			current.timeout = parsed;
+		} else if (arg === "--cwd") {
+			if (!current) {
+				process.stderr.write("--cwd requires a preceding --run flag\n");
+				process.exitCode = 1;
+				return;
+			}
+			i++;
+			if (i >= args.length) {
+				process.stderr.write("--cwd requires a value\n");
+				process.exitCode = 1;
+				return;
+			}
+			current.cwd = args[i];
+		} else if (arg === "--pipe") {
+			if (!current) {
+				process.stderr.write("--pipe requires a preceding --run flag\n");
+				process.exitCode = 1;
+				return;
+			}
+			current.pipe = true;
+		} else if (arg === "--capture") {
+			if (!current) {
+				process.stderr.write("--capture requires a preceding --run flag\n");
+				process.exitCode = 1;
+				return;
+			}
+			current.capture = true;
+		} else if (arg === "--no-capture") {
+			if (!current) {
+				process.stderr.write("--no-capture requires a preceding --run flag\n");
+				process.exitCode = 1;
+				return;
+			}
+			current.capture = false;
+		} else if (arg === "--pipefail") {
+			if (globalOptionsClosed) {
+				process.stderr.write(
+					"--pipefail must be specified before the first --run\n",
+				);
+				process.exitCode = 1;
+				return;
+			}
 			pipefail = true;
 		} else if (arg === "--no-pipefail") {
+			if (globalOptionsClosed) {
+				process.stderr.write(
+					"--no-pipefail must be specified before the first --run\n",
+				);
+				process.exitCode = 1;
+				return;
+			}
 			pipefail = false;
 		} else if (arg === "--max-bytes") {
+			if (globalOptionsClosed) {
+				process.stderr.write(
+					"--max-bytes must be specified before the first --run\n",
+				);
+				process.exitCode = 1;
+				return;
+			}
 			if (maxBytesSet) {
 				process.stderr.write(
 					"--max-bytes: invalid value (specified more than once)\n",
@@ -142,24 +249,58 @@ async function main() {
 
 	const argument = filtered[0];
 
-	if (argument === undefined) {
+	if (flagCommands.length > 0) {
+		if (argument !== undefined) {
+			process.stderr.write("cannot mix --run with plan file or stdin\n");
+			process.exitCode = 1;
+			return;
+		}
+		for (let index = 0; index < flagCommands.length; index += 1) {
+			const command = flagCommands[index];
+			const path = `$.commands[${index}]`;
+			if (
+				"timeout" in command &&
+				command.timeout !== undefined &&
+				(!Number.isFinite(command.timeout) ||
+					command.timeout <= 0 ||
+					command.timeout * 1000 > MAX_TIMEOUT_MILLISECONDS)
+			) {
+				return invalid(`${path}.timeout`);
+			}
+			if (command.cwd !== undefined) {
+				try {
+					if (!(await stat(command.cwd)).isDirectory())
+						return invalid(`${path}.cwd`);
+				} catch {
+					return invalid(`${path}.cwd`);
+				}
+			}
+			if (command.pipe && index === flagCommands.length - 1) {
+				return invalid(`${path}.pipe`);
+			}
+		}
+	} else if (argument === undefined) {
 		usage();
 		return;
 	}
 
 	let plan: unknown;
-	try {
-		let input = "";
-		if (argument === "-") {
-			for await (const chunk of process.stdin) input += chunk;
-		} else {
-			input = await readFile(argument, "utf8");
+	if (flagCommands.length > 0) {
+		plan = { commands: flagCommands };
+	} else {
+		try {
+			let input = "";
+			if (argument === "-") {
+				for await (const chunk of process.stdin) input += chunk;
+			} else {
+				input = await readFile(argument, "utf8");
+			}
+			plan = JSON.parse(input);
+		} catch (error) {
+			process.stderr.write(`${(error as Error).message}\n`);
+			process.exitCode = 1;
+			return;
 		}
-		plan = JSON.parse(input);
-	} catch (error) {
-		process.stderr.write(`${(error as Error).message}\n`);
-		process.exitCode = 1;
-		return;
 	}
 
 	if (

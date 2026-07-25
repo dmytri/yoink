@@ -43,6 +43,29 @@ Yoink runs both retrievals and writes one labelled multipart MIME bundle to stan
 
 ## Plans
 
+Two ways to specify a plan: flag-based (preferred for simple inline cases) or JSON (for complex plans).
+
+### Flag-based plans
+
+Use command-line flags to specify commands directly. This avoids JSON escaping and is more readable in Markdown:
+
+```sh
+yoink --run "cat -- AGENTS.md" --label "Instructions" \
+  --run "rg --files src" --label "Source paths"
+```
+
+Global flags (`--max-bytes`, `--pipefail`, `--no-pipefail`) must come before the first `--run`. Command flags (`--label`, `--timeout`, `--cwd`, `--pipe`, `--capture`, `--no-capture`) apply to the most recent `--run`. Labels are optional; commands without labels get default names like `command-0`.
+
+Example with pipes and timeouts:
+
+```sh
+yoink --run "rg --files src" --label "Source" --pipe --capture \
+  --run "sed 's/^/File: /'" --label "Piped" \
+  --run "sleep 5" --label "Slow" --timeout 30
+```
+
+### JSON plans
+
 A plan is a JSON object with an ordered `commands` array. Each command is an object with these fields:
 
 Yoink is for retrievals that can be selected in advance, not investigations where each next command depends on interpreting the previous result. Use a deterministic shell pipeline when that dependency can be expressed inside the plan.
