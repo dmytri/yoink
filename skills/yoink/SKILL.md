@@ -60,6 +60,8 @@ Use a supplied plan file instead when the plan is reused, large, editor-validate
 
 Quoted heredocs prevent shell expansion but do not bypass Yoink's JSON parsing. Escape backslashes inside JSON string values. For example, write `\\K` in JSON when the command must receive `\K`.
 
+Prefer JSON-safe command patterns. Use `git ls-files` over raw `find`. Use simple globs and avoid shell-metachar predicates like `\(`, `\)`; they break JSON heredocs and cost turns to debug.
+
 When a piped command's stdout streams into the next command, set `"capture": true` to also include that output in the bundle.
 
 ## Supplied plan file

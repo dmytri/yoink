@@ -118,6 +118,8 @@ Use a plan file when the plan is reused, large, editor-validated with `$schema`,
 
 Yoink still parses the JSON after the heredoc reaches it. Escape backslashes for JSON string values, even with a quoted heredoc. For example, write `\\K` in JSON when the command must receive `\K`.
 
+Prefer JSON-safe command patterns. Use `git ls-files` over raw `find`. Use simple globs and avoid shell-metachar predicates like `\(`, `\)`; they break JSON heredocs and cost turns to debug.
+
 By default (`--pipefail`), Yoink exits non-zero if any piped producer fails. Use `--no-pipefail` to accept a failed piped producer when the consumer succeeds.
 
 Commands execute serially in array order. A plan-level pipe connects one command to the next command's stdin; it does not make unrelated commands concurrent.

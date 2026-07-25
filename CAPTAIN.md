@@ -28,7 +28,7 @@ No voyage work: no `child.on("error")` handler; `realpath(cwd)` after close can 
 
 - The `tests:all` `.env` sourcing issue is package-script tooling, not product work or a QM-owned asset change. A cancelled QM dispatch was wrong because Captain conflated that script defect with the separate pipe-closure verification blocker. Keep Captain-owned assets and package-script decisions on Captain's side; dispatch QM only for verification support.
 
-- **Shipshape shakedown (2026-07-24) — RESOLVED.** Both code-level items delivered in `4bdb29b`:
-  1. Per-command truncation: `--max-bytes` bounds each command independently; `stdout_bytes`/`stderr_bytes` metadata identifies which command overflowed.
-  2. Plan-parse errors: JSON parse diagnostics include line/column position.
-  - **Deferred:** JSON-safe patterns guidance (suggesting `git ls-files` over raw `find`, warning about shell-metachar predicates) not added to skill docs. Low priority — strong models absorb the escape warning; weak models burn turns before reaching it.
+- **Shipshape shakedown (2026-07-24) — RESOLVED.** All items delivered:
+  1. Per-command truncation: `--max-bytes` bounds each command independently; `stdout_bytes`/`stderr_bytes` metadata identifies which command overflowed (commit `4bdb29b`).
+  2. Plan-parse errors: JSON parse diagnostics include line/column position (commit `4bdb29b`).
+  3. JSON-safe patterns guidance: skill docs and README now recommend `git ls-files` over raw `find` and warn against shell-metachar predicates.
