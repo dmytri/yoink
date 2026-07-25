@@ -6,11 +6,11 @@ Binding behaviour lives in `.feature` specs and referenced `assets/**`. History 
 
 ## Voyage State
 
-Closed. Flag-based inline plan interface shipped in commit `1797df9`. All 9 scenarios green. Documentation updated (skill docs, README, usage text).
+Closed. Flag-based inline plan interface shipped in v0.2.0. All 9 scenarios green. Documentation updated (skill docs, README, usage text).
 
 ## Outbound
 
-`main` at `1797df9`. Working tree clean.
+`main` at `a09b7bc`. Tag `v0.2.0` published. `@dk/yoink@0.2.0` on npm. Working tree clean.
 
 ## Conventions
 
