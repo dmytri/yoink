@@ -52,6 +52,24 @@ Example with global flag:
 npx @dk/yoink --max-bytes 100000 --run "cat AGENTS.md" --label "Instructions"
 ```
 
+### Environment variables for parameterization
+
+Use environment variables to parameterize commands instead of placeholders or template syntax. The shell expands variables in unquoted arguments, making this pattern natural and readable:
+
+```sh
+ME=dmytri npx @dk/yoink --run "echo hi, $ME" --label "Greeting"
+```
+
+This works with multiple variables and complex commands:
+
+```sh
+REPO=yoink BRANCH=main npx @dk/yoink \
+  --run "git clone https://github.com/$ME/$REPO" --label "Clone" \
+  --run "cd $REPO && git checkout $BRANCH" --label "Checkout"
+```
+
+Environment variables are shell-native, require no escaping, and work seamlessly with the flag interface. Prefer this over JSON placeholders or template syntax when parameterizing plans.
+
 ### JSON heredoc inline plan
 
 When writing a plan inside Markdown instructions or any skill, prefer a quoted heredoc. It keeps commands and trust review together and avoids a temporary plan file:

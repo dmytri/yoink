@@ -64,6 +64,24 @@ yoink --run "rg --files src" --label "Source" --pipe --capture \
   --run "sleep 5" --label "Slow" --timeout 30
 ```
 
+### Environment variables for parameterization
+
+Use environment variables to parameterize commands instead of placeholders or template syntax. The shell expands variables in unquoted arguments, making this pattern natural and readable:
+
+```sh
+ME=dmytri yoink --run "echo hi, $ME" --label "Greeting"
+```
+
+This works with multiple variables and complex commands:
+
+```sh
+REPO=yoink BRANCH=main yoink \
+  --run "git clone https://github.com/$ME/$REPO" --label "Clone" \
+  --run "cd $REPO && git checkout $BRANCH" --label "Checkout"
+```
+
+Environment variables are shell-native, require no escaping, and work seamlessly with the flag interface. Prefer this over JSON placeholders or template syntax when parameterizing plans.
+
 ### JSON plans
 
 A plan is a JSON object with an ordered `commands` array. Each command is an object with these fields:
