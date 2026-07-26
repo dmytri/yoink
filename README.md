@@ -66,21 +66,33 @@ yoink --run "rg --files src" --label "Source" --pipe --capture \
 
 ### Environment variables for parameterization
 
-Use environment variables to parameterize commands instead of placeholders or template syntax. The shell expands variables in unquoted arguments, making this pattern natural and readable:
+Use environment variables to parameterize commands instead of placeholders or template syntax. Use single quotes for the `--run` argument so the variable expands in the command shell, not the calling shell. Quote the variable with `"${VAR}"` inside the command to prevent word splitting and globbing:
 
 ```sh
-ME=dmytri yoink --run "echo hi, $ME" --label "Greeting"
+ME=dmytri yoink --run 'echo "hi, ${ME}"' --label "Greeting"
+```
+
+Use braces (`${VAR}`) when the variable name sits next to other characters that would otherwise become part of the name:
+
+```sh
+PREFIX=src yoink --run 'ls "${PREFIX}_backup"' --label "List backup"
+```
+
+Omit braces when the variable stands alone:
+
+```sh
+ME=dmytri yoink --run 'echo "${ME}"' --label "Who"
 ```
 
 This works with multiple variables and complex commands:
 
 ```sh
 REPO=yoink BRANCH=main yoink \
-  --run "git clone https://github.com/$ME/$REPO" --label "Clone" \
-  --run "cd $REPO && git checkout $BRANCH" --label "Checkout"
+  --run 'git clone "https://github.com/${ME}/${REPO}"' --label "Clone" \
+  --run 'cd "${REPO}" && git checkout "${BRANCH}"' --label "Checkout"
 ```
 
-Environment variables are shell-native, require no escaping, and work seamlessly with the flag interface. Prefer this over JSON placeholders or template syntax when parameterizing plans.
+Environment variables are shell-native and work seamlessly with the flag interface. Prefer this over JSON placeholders or template syntax when parameterizing plans.
 
 ### JSON plans
 
