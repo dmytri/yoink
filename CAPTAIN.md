@@ -6,7 +6,7 @@ Binding behaviour lives in `.feature` specs and referenced `assets/**`. History 
 
 ## Voyage State
 
-Closed. Flag-based inline plan interface shipped in v0.2.0. All 9 scenarios green. Documentation updated (skill docs, README, usage text).
+Closed. Flag-based inline plan interface shipped in v0.2.0. All 9 scenarios green. Documentation updated (skill docs, README, usage text, env var parameterization guidance).
 
 ## Outbound
 
