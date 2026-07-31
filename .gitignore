@@ -1,6 +1,7 @@
 .agents/
 .claude/
 .env
+.npmrc
 coverage/
 node_modules/
 src/usage-text.ts
