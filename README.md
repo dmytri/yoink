@@ -268,32 +268,17 @@ Redirect standard output to a file when another process or agent will parse the 
 yoink plan.json > bundle.eml 2> yoink-errors.log
 ```
 
-Parse the output as MIME. Do not split it on the boundary string or decode the body as text. Each command contributes three parts in order:
+Each command contributes three parts in order:
 
 1. `metadata` contains one JSON object that identifies the command and its status.
 2. `stdout` contains the command's captured bytes.
 3. `stderr` contains the command's error bytes.
 
-For example, Python's standard MIME parser exposes each part without changing binary content:
-
-```python
-from email import policy
-from email.parser import BytesParser
-
-with open("bundle.eml", "rb") as stream:
-    bundle = BytesParser(policy=policy.default).parse(stream)
-
-for part in bundle.walk():
-    if part.get_content_maintype() == "multipart":
-        continue
-    name = part.get_param("name", header="content-disposition")
-    body = part.get_payload(decode=True)
-    print(name, len(body or b""))
-```
+Boundary lines and `Content-Disposition: form-data; name="..."` headers delimit the parts, so an agent reading the bundle directly can see where each command's output starts and ends. The `name` values are `metadata`, `stdout`, and `stderr`, repeated in that order for each command.
 
 Use the metadata `index` or `label` to associate each stdout and stderr part with its command. A failed command still has a result in the bundle; use its metadata status fields and Yoink's process exit code to decide whether the retrieval succeeded.
 
-For programmatic parsing, inspect each MIME part's `Content-Disposition` header. The `name` values are `metadata`, `stdout`, and `stderr`, repeated in that order for each command. Read `metadata` as JSON and keep `stdout` and `stderr` as bytes until the consumer knows they are text.
+The bundle is valid multipart MIME, so a program that consumes it can use a standard MIME parser and keep `stdout` and `stderr` as bytes until it knows they are text.
 
 ## Agent Skills
 
