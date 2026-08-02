@@ -115,8 +115,6 @@ Feature: Retrieval command execution
     When Yoink receives a termination signal
     Then the marker file does not exist
 
-
-  @captain
   Scenario: A command's cwd removed between plan validation and result still ships the bundle
     Given a plan command has a cwd that the harness removes while the command is running
     When the harness removes the cwd while Yoink runs the plan
