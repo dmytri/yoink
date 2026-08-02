@@ -208,6 +208,8 @@ Capture choices affect bundle size. Yoink includes metadata, stdout bytes, and s
 
 Use `--max-bytes <n>` to limit each command's captured stdout and stderr stream independently. It is not a total bundle-size limit. Prefer limiting output at the source with focused patterns or `head`; Yoink records stdout and stderr truncation in result metadata.
 
+The cap applies to the captured stream, not the piped-to-consumer stream. For a piped producer, only the first `--max-bytes` bytes appear in the bundle under the producer's `stdout` part; the producer's full output still flows to the next command's stdin. The producer's `stdout_bytes` metadata reports the captured length, not the producer's total output, so a truncated producer records `stdout_bytes` equal to `--max-bytes` regardless of how much it actually produced. Set `"capture": false` on a piped producer to drop its stdout from the bundle entirely without affecting the pipe.
+
 ```sh
 npx @dk/yoink --max-bytes 100000 - <<'JSON'
 {"commands":[{"label":"Instructions","run":"cat -- AGENTS.md"}]}
