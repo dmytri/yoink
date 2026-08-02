@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFile, spawn } from "node:child_process";
-import { mkdir, mkdtemp, readFile, stat, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
@@ -574,4 +574,65 @@ Then("the marker file does not exist", async function () {
 	await assert.rejects(stat(join(this.directory, this.markerFile)), {
 		code: "ENOENT",
 	});
+});
+
+
+Given(
+	"a plan command has a cwd that the harness removes while the command is running",
+	async function () {
+		this.cwdDir = await mkdtemp(join(tmpdir(), "yoink-cwd-removed-"));
+		this.cwdMarker = "marker";
+		setPlan(this, [
+			{
+				label: "ephemeral",
+				run: `touch ${this.cwdMarker} && sleep 0.5`,
+				cwd: this.cwdDir,
+			},
+		]);
+	},
+);
+
+When("the harness removes the cwd while Yoink runs the plan", async function () {
+	this.directory = this.cwdDir;
+	await writeFile(join(this.directory, "plan.json"), this.plan);
+	const child = spawn(
+		process.execPath,
+		[join(process.cwd(), "dist/cli.js"), "plan.json"],
+		{ cwd: this.directory, stdio: ["ignore", "pipe", "pipe"] },
+	);
+	const collect = (stream) =>
+		new Promise((resolve) => {
+			const chunks = [];
+			stream.on("data", (chunk) => chunks.push(chunk));
+			stream.on("end", () => resolve(Buffer.concat(chunks)));
+		});
+	const stdoutPromise = collect(child.stdout);
+	const stderrPromise = collect(child.stderr);
+	const closed = new Promise((resolve) =>
+		child.on("close", (code, signal) => resolve({ status: code, signal })),
+	);
+
+	const markerPath = join(this.directory, this.cwdMarker);
+	const deadline = Date.now() + 2000;
+	let markerSeen = false;
+	while (Date.now() < deadline) {
+		try {
+			await stat(markerPath);
+			markerSeen = true;
+			break;
+		} catch {}
+		await new Promise((resolve) => setTimeout(resolve, 10));
+	}
+	assert.ok(markerSeen, "command did not create its marker before the harness timeout");
+	await rm(this.directory, { recursive: true, force: true });
+	const status = await closed;
+	const [stdout, stderr] = await Promise.all([stdoutPromise, stderrPromise]);
+	this.result = { stdout, stderr, ...status };
+});
+
+Then("the command result metadata names a working directory", function () {
+	const output = this.result.stdout.toString();
+	const match = output.match(/"cwd":"((?:\\.|[^"\\])*)"/);
+	assert.ok(match, `bundle output did not contain a cwd string: ${output.slice(0, 200)}`);
+	assert.ok(match[1].length > 0, "cwd field was an empty string");
 });

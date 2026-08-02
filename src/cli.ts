@@ -399,6 +399,9 @@ async function main() {
 	 * @planks("the caller runs Yoink with {string}")
 	 * @planks("the command result metadata indicates stdout was truncated")
 	 * @planks("the command result metadata indicates stderr was truncated")
+	 * @planks("the command result metadata names a working directory")
+	 * @planks("Yoink emits the complete bundle")
+	 * @planks("Yoink exits successfully")
 	 */
 	const execute = (command: Command, piped = false) => {
 		const startedAt = Date.now();
@@ -483,7 +486,9 @@ async function main() {
 			const stderrBuf = Buffer.concat(stderr);
 			return {
 				command,
-				cwd: command.cwd ? await realpath(command.cwd) : process.cwd(),
+				cwd: command.cwd
+					? await realpath(command.cwd).catch(() => command.cwd as string)
+					: process.cwd(),
 				stdout: stdoutBuf,
 				stderr: stderrBuf,
 				...status,
