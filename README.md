@@ -104,7 +104,7 @@ For editor validation and completion, add the published Yoink schema:
 
 ```json
 {
-  "$schema": "https://unpkg.com/@dk/yoink@0.1/plan.schema.json",
+  "$schema": "https://unpkg.com/@dk/yoink@0/plan.schema.json",
   "commands": []
 }
 ```

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { spawn } from "node:child_process";
+import { type ChildProcess, spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { readFile, realpath, stat } from "node:fs/promises";
 import usageText from "./usage-text.js";
@@ -359,11 +359,13 @@ async function main() {
 	}
 
 	const childProcessGroups = new Set<number>();
+	const childHandles = new Set<ChildProcess>();
 	let cleaningUp = false;
 	const handleSignal = async (signal: NodeJS.Signals) => {
 		if (cleaningUp) return;
 		cleaningUp = true;
 		const groups = [...childProcessGroups];
+		const children = [...childHandles];
 		for (const pgid of groups) {
 			try {
 				process.kill(pgid, signal);
@@ -375,6 +377,16 @@ async function main() {
 				process.kill(pgid, "SIGKILL");
 			} catch {}
 		}
+		await Promise.all(
+			children.map((child) => {
+				if (child.exitCode !== null || child.signalCode !== null) {
+					return Promise.resolve();
+				}
+				return new Promise<void>((resolve) => {
+					child.once("close", () => resolve());
+				});
+			}),
+		);
 		process.removeListener("SIGTERM", handleSignal);
 		process.removeListener("SIGINT", handleSignal);
 		process.kill(process.pid, signal);
@@ -384,7 +396,6 @@ async function main() {
 
 	const results: Result[] = [];
 	/**
-	 * @planks("the caller runs Yoink with the plan")
 	 * @planks("the caller runs Yoink with {string}")
 	 * @planks("the command result metadata indicates stdout was truncated")
 	 * @planks("the command result metadata indicates stderr was truncated")
@@ -397,7 +408,10 @@ async function main() {
 			shell: true,
 			stdio: [piped ? "pipe" : "ignore", "pipe", "pipe"],
 		});
-		if (child.pid !== undefined) childProcessGroups.add(-child.pid);
+		if (child.pid !== undefined) {
+			childProcessGroups.add(-child.pid);
+			childHandles.add(child);
+		}
 		const stdout: Buffer[] = [];
 		const stderr: Buffer[] = [];
 		const collectingStdout =
@@ -460,6 +474,7 @@ async function main() {
 		).then(async (status) => {
 			finished = true;
 			clearTimeout(timeout);
+			childHandles.delete(child);
 			if (child.pid !== undefined) childProcessGroups.delete(-child.pid);
 			const stdoutBuf =
 				command.capture === false || (command.pipe && command.capture !== true)

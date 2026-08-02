@@ -1,5 +1,5 @@
 {
-  "$schema": "https://unpkg.com/@dk/yoink@0.1/plan.schema.json",
+  "$schema": "https://unpkg.com/@dk/yoink@0/plan.schema.json",
   "commands": [
     {
       "label": "Agent instructions",

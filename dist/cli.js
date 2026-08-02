@@ -316,12 +316,14 @@ async function main() {
             return invalid(`${path}.capture`);
     }
     const childProcessGroups = new Set();
+    const childHandles = new Set();
     let cleaningUp = false;
     const handleSignal = async (signal) => {
         if (cleaningUp)
             return;
         cleaningUp = true;
         const groups = [...childProcessGroups];
+        const children = [...childHandles];
         for (const pgid of groups) {
             try {
                 process.kill(pgid, signal);
@@ -335,6 +337,14 @@ async function main() {
             }
             catch { }
         }
+        await Promise.all(children.map((child) => {
+            if (child.exitCode !== null || child.signalCode !== null) {
+                return Promise.resolve();
+            }
+            return new Promise((resolve) => {
+                child.once("close", () => resolve());
+            });
+        }));
         process.removeListener("SIGTERM", handleSignal);
         process.removeListener("SIGINT", handleSignal);
         process.kill(process.pid, signal);
@@ -343,7 +353,6 @@ async function main() {
     process.on("SIGINT", handleSignal);
     const results = [];
     /**
-     * @planks("the caller runs Yoink with the plan")
      * @planks("the caller runs Yoink with {string}")
      * @planks("the command result metadata indicates stdout was truncated")
      * @planks("the command result metadata indicates stderr was truncated")
@@ -356,8 +365,10 @@ async function main() {
             shell: true,
             stdio: [piped ? "pipe" : "ignore", "pipe", "pipe"],
         });
-        if (child.pid !== undefined)
+        if (child.pid !== undefined) {
             childProcessGroups.add(-child.pid);
+            childHandles.add(child);
+        }
         const stdout = [];
         const stderr = [];
         const collectingStdout = command.capture !== false && !(command.pipe && command.capture !== true);
@@ -408,6 +419,7 @@ async function main() {
         const status = new Promise((resolve) => child.on("close", (code, signal) => resolve({ code, signal }))).then(async (status) => {
             finished = true;
             clearTimeout(timeout);
+            childHandles.delete(child);
             if (child.pid !== undefined)
                 childProcessGroups.delete(-child.pid);
             const stdoutBuf = command.capture === false || (command.pipe && command.capture !== true)
