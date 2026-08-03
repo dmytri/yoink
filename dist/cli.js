@@ -193,6 +193,10 @@ async function main() {
             maxBytes = parsed;
             maxBytesSet = true;
         }
+        else if (arg === "--") {
+            filtered.push("-");
+            break;
+        }
         else if (arg.startsWith("-") && arg !== "-") {
             process.stderr.write(`unknown option: ${arg}\n`);
             process.exitCode = 1;
@@ -248,6 +252,9 @@ async function main() {
     }
     else {
         try {
+            /**
+             * @planks-provisional("features/command-execution.feature:A one-megabyte plan from standard input is read in linear time")
+             */
             let input = "";
             if (argument === "-") {
                 for await (const chunk of process.stdin)
@@ -458,6 +465,10 @@ async function main() {
             isFinished: () => finished,
         };
     };
+    /**
+     * @planks-provisional("features/command-execution.feature:A piped consumer's stdin error path does not crash Yoink")
+     * @planks-provisional("features/command-execution.feature:The pipe-close grace waits for the producer's close event, not a timer")
+     */
     const commands = plan.commands;
     for (let index = 0; index < commands.length;) {
         if (cleaningUp)
