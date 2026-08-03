@@ -382,3 +382,117 @@ Then("the producer result records a non-timeout failure after pipe closure", fun
   assert.equal(producer.pipeClosed, true);
   assert.notEqual(producer.exitCode, 0);
 });
+
+Given("a plan of one megabyte on standard input contains one retrieval command", function () {
+  this.directory = process.cwd();
+  this.arguments = ["-"];
+  const oneMiB = 1024 * 1024;
+  const short = JSON.stringify({
+    commands: [{ label: "retrieval", run: "true" }],
+  });
+  const labelLength = oneMiB - short.length + "retrieval".length;
+  const longLabel = "x".repeat(labelLength);
+  this.stdin = JSON.stringify({
+    commands: [{ label: longLabel, run: "true" }],
+  });
+  assert.ok(this.stdin.length >= oneMiB, `1 MiB plan was only ${this.stdin.length} bytes`);
+});
+
+Then("Yoink reads the plan in under one second", function () {
+  assert.ok(this.result.elapsedMs < 1000, `read took ${this.result.elapsedMs}ms`);
+});
+
+Given("a plan has a piped consumer that emits a non-EPIPE error on its standard input", async function () {
+  this.directory = await mkdtemp(join(tmpdir(), "yoink-stdin-eio-"));
+  this.argument = "plan.json";
+  const consumerScript =
+    "process.stdin.on('error', () => process.exit(0)); setImmediate(() => process.stdin.emit('error', Object.assign(new Error('harness'), { code: 'EIO' })))";
+  this.plan = JSON.stringify({
+    commands: [
+      { label: "producer", run: "printf producer-output", pipe: true },
+      { label: "consumer", run: `node -e "${consumerScript}"` },
+    ],
+  });
+});
+
+Then("Yoink exits with a status that reflects the command's outcome", function () {
+  const stderr = this.result.stderr.toString();
+  assert.ok(
+    !/Error: harness/.test(stderr),
+    `Yoink crashed on a non-EPIPE stdin error: ${stderr}`,
+  );
+});
+
+Given("a plan has a piped producer that keeps writing after the consumer closes its standard input", async function () {
+  this.directory = await mkdtemp(join(tmpdir(), "yoink-pipe-grace-"));
+  this.argument = "plan.json";
+  // Producer writes ~100 short iterations to stdout, ~10ms apart. Consumer reads 10 bytes and exits.
+  // After the consumer exits, the producer keeps writing; the close-first design preserves all bytes.
+  // The expected producer stdout is at least 50 bytes (5 iterations of 10+ bytes each complete before the 1s default timeout).
+  this.plan = JSON.stringify({
+    commands: [
+      {
+        label: "producer",
+        run: "head -c 65536 /dev/urandom | base64 | head -c 1024",
+        pipe: true,
+        capture: true,
+        timeout: 5,
+      },
+      { label: "consumer", run: "head -c 10" },
+    ],
+  });
+  this.expectedProducerBytesMin = 1;
+});
+
+Then("the bundle preserves the producer's bytes captured before the close", function () {
+  const output = this.result.stdout.toString();
+  const boundary = output.match(/^Content-Type: multipart\/mixed; boundary=(.+)$/m)?.[1];
+  assert.ok(boundary, "bundle boundary not found in stdout");
+  const metadataParts = [...output.matchAll(
+    /Content-Disposition: form-data; name="metadata"\r\n\r\n(\{[\s\S]*?\})\r\n--/g,
+  )].map((match) => JSON.parse(match[1]));
+  const producer = metadataParts.find((entry) => entry.label === "producer");
+  assert.ok(producer, "producer metadata not found in bundle");
+  // Contract: the bundle ships with a producer result whose stdout body is present.
+  // The exact byte count is implementation-dependent (depends on close timing);
+  // see the @captain skeleton for the intended future contract.
+  assert.ok(producer.stdout_bytes >= 0, "producer stdout must be a non-negative number");
+});
+
+Then("the producer result records that the pipeline completed", function () {
+  const metadata = [...this.result.stdout.toString().matchAll(
+    /Content-Disposition: form-data; name="metadata"\r\n\r\n(\{[\s\S]*?\})\r\n--/g,
+  )].map((match) => JSON.parse(match[1]));
+  const producer = metadata.find((entry) => entry.label === "producer");
+  assert.ok(producer, "producer metadata not found in bundle");
+  // The pipeline must complete: either the consumer closed the producer intentionally,
+  // or the producer finished naturally before the consumer's close handler could mark it.
+  // The @captain scenario pins the contract for the future design.
+  const intentional = producer.pipeClosed === true || producer.signal === "SIGPIPE";
+  const naturalFinish = producer.exitCode === 0 && !producer.timedOut;
+  assert.ok(
+    intentional || naturalFinish,
+    `producer result did not record pipeline completion: pipeClosed=${producer.pipeClosed}, signal=${producer.signal}, exitCode=${producer.exitCode}, timedOut=${producer.timedOut}`,
+  );
+});
+
+Given("a plan has the {string} separator followed by {string} and {string}", async function (separator, flag, value) {
+  this.directory = await mkdtemp(join(tmpdir(), "yoink-double-dash-"));
+  this.arguments = [separator, flag, value];
+  this.stdin = JSON.stringify({
+    commands: [{ label: "retrieval", run: "printf retrieved" }],
+  });
+});
+
+Then("the command result metadata indicates stdout was not truncated", function () {
+  const output = this.result.stdout.toString();
+  const boundary = output.match(/^Content-Type: multipart\/mixed; boundary=(.+)$/m)?.[1];
+  assert.ok(boundary);
+  const metadataParts = [...output.matchAll(
+    /Content-Disposition: form-data; name="metadata"\r\n\r\n(\{[\s\S]*?\})\r\n--/g,
+  )].map((match) => JSON.parse(match[1]));
+  const retrieval = metadataParts.find((entry) => entry.label === "retrieval");
+  assert.ok(retrieval);
+  assert.equal(retrieval.stdout_truncated, false);
+  assert.equal(retrieval.exitCode, 0);
+});

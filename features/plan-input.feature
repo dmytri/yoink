@@ -194,3 +194,10 @@ Feature: Retrieval plan input
       | --max-bytes 64x   |
       | --max-bytes 999999999999999999999999999999999999999999999999999999999999 |
       | --max-bytes 64 --max-bytes 128 |
+
+  @captain
+  Scenario: A double-dash separator ends option parsing
+    Given a plan has the "--" separator followed by "--max-bytes" and "64"
+    When the caller runs Yoink with the plan
+    Then Yoink emits the complete bundle
+    And the command result metadata indicates stdout was not truncated

@@ -121,3 +121,24 @@ Feature: Retrieval command execution
     Then Yoink emits the complete bundle
     And the command result metadata names a working directory
     And Yoink exits successfully
+
+  @captain
+  Scenario: A piped consumer's stdin error path does not crash Yoink
+    Given a plan has a piped consumer that emits a non-EPIPE error on its standard input
+    When the caller runs Yoink with the plan
+    Then Yoink emits the complete bundle
+    And Yoink exits with a status that reflects the command's outcome
+
+  @captain
+  Scenario: The pipe-close grace waits for the producer's close event, not a timer
+    Given a plan has a piped producer that keeps writing after the consumer closes its standard input
+    When the caller runs Yoink with the plan
+    Then the producer result records that the pipeline completed
+    And the bundle preserves the producer's bytes captured before the close
+
+  @captain
+  Scenario: A one-megabyte plan from standard input is read in linear time
+    Given a plan of one megabyte on standard input contains one retrieval command
+    When the caller runs Yoink with the plan
+    Then Yoink reads the plan in under one second
+    And Yoink emits the complete bundle

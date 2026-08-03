@@ -533,6 +533,7 @@ When(
 
 Then("Yoink emits the complete bundle", function () {
 	const output = this.result.stdout.toString();
+
 	const boundary = output.match(
 		/^Content-Type: multipart\/mixed; boundary=(.+)$/m,
 	)?.[1];

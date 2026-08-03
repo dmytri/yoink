@@ -6,7 +6,7 @@ Binding behaviour lives in `.feature` specs and referenced `assets/**`. History 
 
 ## Voyage State
 
-Closed. R6 voyage shipped six commits on top of v0.2.1 (`ec97e5f`, `53d7614`, `27a566f`, `9275a7d`, `1c4b771`, `1efa3dc`): the R6 realpath-rejection fix, the binding scenario hardening, the R6 `@captain` skeleton promotion, the README `--max-bytes` pipe-semantics clarification, the dist re-sync, the Captain-notes refresh, and the `v0.2.2` version bump. R6 is now a binding `@logic` scenario; broad recheck 92/92 green, ~15s. Published as `@dk/yoink@0.2.2` (commit `1efa3dc`, tag `v0.2.2`). No `watchbill.json`, no live `PERTURBATION` statements, no `@captain` or `@shipwright` tags. `RIGGING.md` `eval` tier is unfitted; `broad-eval` is not run by default.
+In flight. The R6 voyage (`ec97e5f`..`1efa3dc`) shipped and was published as `@dk/yoink@0.2.2`. A second voyage is now in flight to resolve the four open findings deferred from the R6 voyage. Four `@captain` scenarios planted at `features/command-execution.feature` (R2 pipe-consumer-stdin error, R4 pipe-close grace timer, R7 stdin O(n^2) concat) and `features/plan-input.feature` (S4 `--` end-of-options separator), with corresponding `@planks-provisional` annotations on the production seams in `src/cli.ts:233,290,517`. `watchbill.json` enumerates the four targets. Awaiting QM dispatch to harden the skeletons into binding failing targets, then Crew for the production fixes.
 
 ## Outbound
 
@@ -15,14 +15,14 @@ Tag `v0.2.0` is on npm. `v0.2.2` is now published. The R6 voyage shipped as a pa
 - Trunk-based development: push to `origin/main` directly. No feature branches or PRs.
 - Captain is the only human-facing role. QM, Crew, and Boatswain are internal and report through durable artifacts, verification output, and role hand-offs.
 
-## Open Findings (deferred, not blocking)
+## Open Findings (in flight)
 
-These are real defects the next harbour full regression will surface. Each is a Crew target, not a Captain write; none has been opened as a watch yet. Logged here so the next Captain cycle is not blind to them. None of them is a publish-blocker for the R6 voyage because none has a binding scenario that fails today.
+All four are now in flight. `@captain` scenarios planted, `@planks-provisional` annotations on the seams, `watchbill.json` enumerates the four. Awaiting QM dispatch.
 
-- **`src/cli.ts:530-533`** — pipe-consumer stdin error handler rethrows any non-`EPIPE` error and crashes the process. The path is unreachable for normal POSIX piped consumers; the `throw error` is speculative defensive code. Crew fix: delete the `if (error.code !== "EPIPE") throw error;` branch; the existing EPIPE scenarios pin the bundle-ships invariant.
-- **`src/cli.ts:33, 524-527`** — `PIPE_CLOSE_GRACE_MILLISECONDS = 50` schedules `producer.child.stdout.destroy()` 50ms after the consumer closes. If the producer is mid-write at that 50ms mark, queued bytes are dropped. The bundle's captured `stdout` is already in `stdout[]` by then, so no observable data loss in practice, but the implementation is racy by construction. Crew fix: wait on `child.on("close", ...)` instead of a timer. No behaviour change for the pinned scenarios.
-- **`src/cli.ts:292-294`** — stdin read does `input += chunk` in a loop (O(n^2) on large plans). Not user-observable below a few hundred KB. Crew fix: accumulate `Buffer`s and decode once.
-- **`src/cli.ts:235-241`** — no `--` end-of-options separator. Unknown options after a positional still report a useful diagnostic, so no silent failure, but a `--` separator would be friendlier. Crew fix: skip args after a bare `--` and pass the rest to the plan reader.
+- **`src/cli.ts:535-538`** — pipe-consumer stdin error handler rethrows any non-`EPIPE` error and crashes the process. **In flight:** `@captain` scenario at `features/command-execution.feature:A piped consumer's stdin error path does not crash Yoink`, with `@planks-provisional` on the `for (let index = 0; ...)` loop seam at `src/cli.ts:517`. Provocation: a piped consumer that emits a synthetic non-EPIPE error on its stdin via `node -e`. Crew fix: delete the `if (error.code !== "EPIPE") throw error;` branch.
+- **`src/cli.ts:33, 529-532`** — `PIPE_CLOSE_GRACE_MILLISECONDS = 50` schedules `producer.child.stdout.destroy()` 50ms after the consumer closes. **In flight:** `@captain` scenario at `features/command-execution.feature:The pipe-close grace waits for the producer's close event, not a timer`, with `@planks-provisional` on the same `for` loop seam. Crew fix: wait on `child.once("close", ...)` instead of a timer.
+- **`src/cli.ts:292-294`** — stdin read does `input += chunk` in a loop (O(n^2) on large plans). **In flight:** `@captain` scenario at `features/command-execution.feature:A one-megabyte plan from standard input is read in linear time`, with `@planks-provisional` on the stdin read block at `src/cli.ts:290`. Crew fix: accumulate `Buffer`s and decode once.
+- **`src/cli.ts:235-241`** — no `--` end-of-options separator. **In flight:** `@captain` scenario at `features/plan-input.feature:A double-dash separator ends option parsing`, with `@planks-provisional` on the unknown-option branch at `src/cli.ts:233`. Provocation: `yoink -- --max-bytes 64` currently fails with "unknown option: --". Crew fix: when `--` is encountered, skip option parsing for the remaining args and pass them to the plan reader.
 
 ## Eval State
 
